@@ -1257,10 +1257,14 @@ namespace mOUND
                 formData.Add(new MultipartFormDataSection("description", appDescription));
                 formData.Add(new MultipartFormDataSection("organizationId", organizationId));
                 formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
-                formData.Add(new MultipartFormFileSection("file", zipData, appName + ".zip", "application/zip"));
+                formData.Add(new MultipartFormFileSection("build", zipData, appName + ".zip", "application/zip"));
                 
-                request.uploadHandler = new UploadHandlerRaw(UnityWebRequest.SerializeFormSections(formData, UnityWebRequest.GenerateBoundary()));
+                byte[] boundary = UnityWebRequest.GenerateBoundary();
+                byte[] formSections = UnityWebRequest.SerializeFormSections(formData, boundary);
+                
+                request.uploadHandler = new UploadHandlerRaw(formSections);
                 request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "multipart/form-data; boundary=" + System.Text.Encoding.UTF8.GetString(boundary));
                 request.SetRequestHeader("Authorization", "Bearer " + authToken);
                 request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
                 request.timeout = 300; // 5 minute timeout for uploads
@@ -1365,7 +1369,7 @@ namespace mOUND
                 }
             }
             
-            using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications/" + appId, "PUT"))
+            using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications/" + appId + "/versions", "POST"))
             {
                 // Create form data for update
                 List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
@@ -1373,10 +1377,14 @@ namespace mOUND
                 formData.Add(new MultipartFormDataSection("description", appDescription));
                 formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
                 formData.Add(new MultipartFormDataSection("changelog", changelogText));
-                formData.Add(new MultipartFormFileSection("file", zipData, appName + "_update.zip", "application/zip"));
+                formData.Add(new MultipartFormFileSection("build", zipData, appName + "_update.zip", "application/zip"));
                 
-                request.uploadHandler = new UploadHandlerRaw(UnityWebRequest.SerializeFormSections(formData, UnityWebRequest.GenerateBoundary()));
+                byte[] boundary = UnityWebRequest.GenerateBoundary();
+                byte[] formSections = UnityWebRequest.SerializeFormSections(formData, boundary);
+                
+                request.uploadHandler = new UploadHandlerRaw(formSections);
                 request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "multipart/form-data; boundary=" + System.Text.Encoding.UTF8.GetString(boundary));
                 request.SetRequestHeader("Authorization", "Bearer " + authToken);
                 request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
                 request.timeout = 300; // 5 minute timeout for uploads
