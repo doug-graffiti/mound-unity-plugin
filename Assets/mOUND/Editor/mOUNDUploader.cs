@@ -259,21 +259,21 @@ namespace mOUND
             string jsonData = JsonUtility.ToJson(loginData);
             Debug.Log($"🔐 mOUND: JSON payload: {jsonData}");
             
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
-            
-            using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/auth/login", "POST"))
+            // Use UnityWebRequest.Post for better Unity Editor compatibility
+            using (UnityWebRequest request = UnityWebRequest.Post(apiUrl + "/api/auth/login", jsonData, "application/json"))
             {
-                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-                request.downloadHandler = new DownloadHandlerBuffer();
-                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                request.timeout = 30; // 30 second timeout
                 
-                Debug.Log($"🔐 mOUND: Sending request to {request.url}");
+                Debug.Log($"🔐 mOUND: Sending POST request to {request.url}");
+                Debug.Log($"🔐 mOUND: Content-Type: application/json, User-Agent: Unity-mOUND-Plugin/1.0.0");
                 
                 yield return request.SendWebRequest();
                 
                 Debug.Log($"🔐 mOUND: Response code: {request.responseCode}");
                 Debug.Log($"🔐 mOUND: Response text: {request.downloadHandler.text}");
                 Debug.Log($"🔐 mOUND: Request result: {request.result}");
+                Debug.Log($"🔐 mOUND: Error (if any): {request.error}");
                 
                 if (request.result == UnityWebRequest.Result.Success)
                 {
@@ -294,14 +294,24 @@ namespace mOUND
                     catch (System.Exception e)
                     {
                         Debug.LogError($"🔐 mOUND: JSON parsing error: {e.Message}");
+                        Debug.LogError($"🔐 mOUND: Response was: {request.downloadHandler.text}");
                         EditorUtility.DisplayDialog("Login Failed", "Invalid response from server: " + e.Message, "OK");
                     }
                 }
                 else
                 {
-                    string errorMsg = $"HTTP {request.responseCode}: {request.downloadHandler.text}";
+                    string errorMsg;
+                    if (request.responseCode == 0)
+                    {
+                        errorMsg = $"Network error: {request.error}. Check your internet connection and firewall settings.";
+                    }
+                    else
+                    {
+                        errorMsg = $"HTTP {request.responseCode}: {request.downloadHandler.text}";
+                    }
+                    
                     Debug.LogError($"🔐 mOUND: Login failed - {errorMsg}");
-                    EditorUtility.DisplayDialog("Login Failed", "Login failed: " + errorMsg, "OK");
+                    EditorUtility.DisplayDialog("Login Failed", errorMsg, "OK");
                 }
             }
         }
