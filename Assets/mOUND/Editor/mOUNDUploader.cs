@@ -457,12 +457,17 @@ namespace mOUND
             {
                 EditorUtility.DisplayProgressBar("mOUND Update", $"Building WebGL for {appToUpdate.name}...", 0.1f);
                 
-                // Set WebGL build settings
+                // Set WebGL build settings with compression for updates
                 BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
                 buildPlayerOptions.scenes = GetEnabledScenes();
                 buildPlayerOptions.locationPathName = "Builds/WebGL";
                 buildPlayerOptions.target = BuildTarget.WebGL;
-                buildPlayerOptions.options = BuildOptions.None;
+                buildPlayerOptions.options = BuildOptions.CompressWithLz4; // Enable compression
+                
+                // Set WebGL compression in player settings
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+                PlayerSettings.WebGL.decompressionFallback = true;
+                Debug.Log($"🔧 mOUND: Set WebGL compression to Brotli for smaller update builds");
                 
                 // Clear previous build
                 if (Directory.Exists("Builds/WebGL"))
@@ -513,12 +518,17 @@ namespace mOUND
             {
                 EditorUtility.DisplayProgressBar("mOUND Upload", "Building WebGL...", 0.1f);
                 
-                // Set WebGL build settings
+                // Set WebGL build settings with compression
                 BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
                 buildPlayerOptions.scenes = GetEnabledScenes();
                 buildPlayerOptions.locationPathName = "Builds/WebGL";
                 buildPlayerOptions.target = BuildTarget.WebGL;
-                buildPlayerOptions.options = BuildOptions.None;
+                buildPlayerOptions.options = BuildOptions.CompressWithLz4; // Enable compression
+                
+                // Set WebGL compression in player settings
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+                PlayerSettings.WebGL.decompressionFallback = true;
+                Debug.Log($"🔧 mOUND: Set WebGL compression to Brotli for smaller builds");
                 
                 // Clear previous build
                 if (Directory.Exists("Builds/WebGL"))
@@ -1204,7 +1214,40 @@ namespace mOUND
             }
             
             byte[] zipData = File.ReadAllBytes(zipPath);
-            Debug.Log($"📤 mOUND: ZIP file size: {zipData.Length} bytes");
+            long fileSizeMB = zipData.Length / (1024 * 1024);
+            Debug.Log($"📤 mOUND: ZIP file size: {zipData.Length} bytes ({fileSizeMB} MB)");
+            
+            // Check file size limits (common server limits are 50-100MB)
+            if (zipData.Length > 100 * 1024 * 1024) // 100MB
+            {
+                EditorUtility.ClearProgressBar();
+                string sizeWarning = $"ZIP file is too large: {fileSizeMB} MB\n\n" +
+                                   "Server limit is typically 100MB.\n\n" +
+                                   "Solutions:\n" +
+                                   "• Enable WebGL compression in Build Settings\n" +
+                                   "• Remove large assets from build\n" +
+                                   "• Use Development Build for smaller size\n" +
+                                   "• Optimize textures and audio";
+                
+                Debug.LogError($"❌ mOUND: {sizeWarning}");
+                EditorUtility.DisplayDialog("File Too Large", sizeWarning, "OK");
+                yield break;
+            }
+            else if (zipData.Length > 50 * 1024 * 1024) // 50MB warning
+            {
+                string sizeWarning = $"Large file warning: {fileSizeMB} MB\n\n" +
+                                   "This may fail on some servers.\n" +
+                                   "Consider optimizing your build.";
+                
+                Debug.LogWarning($"⚠️ mOUND: {sizeWarning}");
+                
+                if (!EditorUtility.DisplayDialog("Large File Warning", 
+                    sizeWarning + "\n\nContinue upload anyway?", "Yes", "Cancel"))
+                {
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+            }
             
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications", "POST"))
             {
@@ -1279,7 +1322,48 @@ namespace mOUND
         {
             Debug.Log($"🔄 mOUND: Starting update of app {appId} with {zipPath}");
             
+            if (!File.Exists(zipPath))
+            {
+                Debug.LogError($"❌ mOUND: ZIP file not found: {zipPath}");
+                EditorUtility.DisplayDialog("Error", $"ZIP file not found: {zipPath}", "OK");
+                yield break;
+            }
+            
             byte[] zipData = File.ReadAllBytes(zipPath);
+            long fileSizeMB = zipData.Length / (1024 * 1024);
+            Debug.Log($"🔄 mOUND: Update ZIP file size: {zipData.Length} bytes ({fileSizeMB} MB)");
+            
+            // Check file size limits for updates too
+            if (zipData.Length > 100 * 1024 * 1024) // 100MB
+            {
+                EditorUtility.ClearProgressBar();
+                string sizeWarning = $"Update ZIP file is too large: {fileSizeMB} MB\n\n" +
+                                   "Server limit is typically 100MB.\n\n" +
+                                   "Solutions:\n" +
+                                   "• Enable WebGL compression in Build Settings\n" +
+                                   "• Remove large assets from build\n" +
+                                   "• Use Development Build for smaller size\n" +
+                                   "• Optimize textures and audio";
+                
+                Debug.LogError($"❌ mOUND: {sizeWarning}");
+                EditorUtility.DisplayDialog("Update File Too Large", sizeWarning, "OK");
+                yield break;
+            }
+            else if (zipData.Length > 50 * 1024 * 1024) // 50MB warning
+            {
+                string sizeWarning = $"Large update file warning: {fileSizeMB} MB\n\n" +
+                                   "This may fail on some servers.\n" +
+                                   "Consider optimizing your build.";
+                
+                Debug.LogWarning($"⚠️ mOUND: {sizeWarning}");
+                
+                if (!EditorUtility.DisplayDialog("Large Update Warning", 
+                    sizeWarning + "\n\nContinue update anyway?", "Yes", "Cancel"))
+                {
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+            }
             
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications/" + appId, "PUT"))
             {
