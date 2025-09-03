@@ -42,6 +42,9 @@ namespace mOUND
         
         private List<Organization> organizations = new List<Organization>();
         private int selectedOrgIndex = 0;
+        private List<ApplicationData> existingApps = new List<ApplicationData>();
+        private int selectedAppIndex = -1; // -1 means "Create New"
+        private bool isUpdateMode = false;
         
         [System.Serializable]
         public class LoginResponse
@@ -69,6 +72,35 @@ namespace mOUND
         public class OrganizationsResponse
         {
             public Organization[] organizations;
+        }
+        
+        [System.Serializable]
+        public class OrganizationData
+        {
+            public string _id;
+            public string name;
+            public string description;
+        }
+        
+        [System.Serializable]
+        public class OrganizationWrapper
+        {
+            public OrganizationData[] items;
+        }
+        
+        [System.Serializable]
+        public class ApplicationData
+        {
+            public string _id;
+            public string name;
+            public string description;
+            public string version;
+        }
+        
+        [System.Serializable]
+        public class ApplicationWrapper
+        {
+            public ApplicationData[] items;
         }
         
         [MenuItem("mOUND/Build and Upload")]
@@ -108,10 +140,30 @@ namespace mOUND
             GUILayout.Label("API URL:");
             apiUrl = EditorGUILayout.TextField(apiUrl);
             
+            EditorGUILayout.Space(5);
+            
+            // Direct username/password login using .NET 6 HttpClient
+            EditorGUILayout.HelpBox(".NET 6 HttpClient method works! Using direct login:", MessageType.Info);
+            
+            GUILayout.Label("Username:");
+            username = EditorGUILayout.TextField(username);
+            
+            GUILayout.Label("Password:");
+            password = EditorGUILayout.PasswordField(password);
+            
+            EditorGUILayout.Space(5);
+            
+            EditorGUI.BeginDisabledGroup(isValidatingToken);
+            if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password) && 
+                GUILayout.Button(isValidatingToken ? "Logging in..." : "Login (.NET 6)", GUILayout.Height(30)))
+            {
+                _ = LoginAsync(); // Use .NET 6 HttpClient method that works
+            }
+            EditorGUI.EndDisabledGroup();
+            
             EditorGUILayout.Space(10);
             
-            // Simplified browser-based login for Unity 6
-            EditorGUILayout.HelpBox("Unity 6 has network restrictions. Please use browser login:", MessageType.Info);
+            GUILayout.Label("Alternative Methods:", EditorStyles.boldLabel);
             
             if (GUILayout.Button("1. Open mOUND Platform Login", GUILayout.Height(30)))
             {
@@ -192,23 +244,66 @@ namespace mOUND
                 {
                     orgNames[i] = organizations[i].name;
                 }
-                selectedOrgIndex = EditorGUILayout.Popup(selectedOrgIndex, orgNames);
-                organizationId = organizations[selectedOrgIndex].id;
+                int newOrgIndex = EditorGUILayout.Popup(selectedOrgIndex, orgNames);
+                if (newOrgIndex != selectedOrgIndex)
+                {
+                    selectedOrgIndex = newOrgIndex;
+                    organizationId = organizations[selectedOrgIndex].id;
+                    // Fetch apps for this organization
+                    _ = FetchApplicationsAsync(organizationId);
+                }
             }
             else
             {
                 GUILayout.Label("No organizations available");
                 if (GUILayout.Button("Refresh Organizations"))
                 {
-                    StartCoroutine(FetchOrganizations());
+                    _ = FetchOrganizationsAsync(); // Use async method
                 }
+            }
+            
+            GUILayout.Space(10);
+            
+            // Update mode toggle
+            isUpdateMode = EditorGUILayout.Toggle("Update Existing App", isUpdateMode);
+            
+            if (isUpdateMode && existingApps.Count > 0)
+            {
+                GUILayout.Label("Select App to Update:");
+                string[] appOptions = new string[existingApps.Count + 1];
+                appOptions[0] = "Create New App";
+                for (int i = 0; i < existingApps.Count; i++)
+                {
+                    appOptions[i + 1] = $"{existingApps[i].name} (v{existingApps[i].version})";
+                }
+                
+                int newAppIndex = EditorGUILayout.Popup(selectedAppIndex + 1, appOptions) - 1;
+                if (newAppIndex != selectedAppIndex)
+                {
+                    selectedAppIndex = newAppIndex;
+                    if (selectedAppIndex >= 0)
+                    {
+                        // Pre-fill with existing app data
+                        var selectedApp = existingApps[selectedAppIndex];
+                        appName = selectedApp.name;
+                        appDescription = selectedApp.description;
+                    }
+                }
+            }
+            else if (isUpdateMode)
+            {
+                GUILayout.Label("No existing apps found for this organization");
             }
             
             isPublic = EditorGUILayout.Toggle("Public Application", isPublic);
             
             GUILayout.Space(20);
             
-            if (GUILayout.Button("Build WebGL and Upload", GUILayout.Height(40)))
+            string buttonText = isUpdateMode && selectedAppIndex >= 0 
+                ? $"Build WebGL and Update {existingApps[selectedAppIndex].name}" 
+                : "Build WebGL and Upload";
+                
+            if (GUILayout.Button(buttonText, GUILayout.Height(40)))
             {
                 if (string.IsNullOrEmpty(appName))
                 {
@@ -222,7 +317,14 @@ namespace mOUND
                     return;
                 }
                 
-                BuildAndUpload();
+                if (isUpdateMode && selectedAppIndex >= 0)
+                {
+                    BuildAndUpdate();
+                }
+                else
+                {
+                    BuildAndUpload();
+                }
             }
             
             GUILayout.Space(10);
@@ -230,6 +332,71 @@ namespace mOUND
             if (GUILayout.Button("Open mOUND Platform"))
             {
                 Application.OpenURL(apiUrl);
+            }
+        }
+        
+        private void BuildAndUpdate()
+        {
+            if (selectedAppIndex < 0 || selectedAppIndex >= existingApps.Count)
+            {
+                EditorUtility.DisplayDialog("Error", "Please select a valid app to update.", "OK");
+                return;
+            }
+            
+            var appToUpdate = existingApps[selectedAppIndex];
+            Debug.Log($"🔄 mOUND: Updating app: {appToUpdate.name} (ID: {appToUpdate._id})");
+            
+            try
+            {
+                EditorUtility.DisplayProgressBar("mOUND Update", $"Building WebGL for {appToUpdate.name}...", 0.1f);
+                
+                // Set WebGL build settings
+                BuildPlayerOptions buildPlayerOptions = new BuildPlayerOptions();
+                buildPlayerOptions.scenes = GetEnabledScenes();
+                buildPlayerOptions.locationPathName = "Builds/WebGL";
+                buildPlayerOptions.target = BuildTarget.WebGL;
+                buildPlayerOptions.options = BuildOptions.None;
+                
+                // Clear previous build
+                if (Directory.Exists("Builds/WebGL"))
+                {
+                    Directory.Delete("Builds/WebGL", true);
+                }
+                
+                EditorUtility.DisplayProgressBar("mOUND Update", "Building WebGL...", 0.3f);
+                
+                // Build the project
+                BuildReport report = BuildPipeline.BuildPlayer(buildPlayerOptions);
+                BuildSummary summary = report.summary;
+                
+                if (summary.result != BuildResult.Succeeded)
+                {
+                    EditorUtility.ClearProgressBar();
+                    EditorUtility.DisplayDialog("Build Failed", "WebGL build failed. Check console for details.", "OK");
+                    return;
+                }
+                
+                EditorUtility.DisplayProgressBar("mOUND Update", "Creating ZIP file...", 0.6f);
+                
+                // Create ZIP file
+                string zipPath = $"Builds/{appName}_update.zip";
+                if (File.Exists(zipPath))
+                {
+                    File.Delete(zipPath);
+                }
+                
+                ZipFile.CreateFromDirectory("Builds/WebGL", zipPath);
+                
+                EditorUtility.DisplayProgressBar("mOUND Update", "Uploading update...", 0.8f);
+                
+                // Upload update
+                StartCoroutine(UpdateAppCoroutine(appToUpdate._id, zipPath));
+            }
+            catch (Exception e)
+            {
+                EditorUtility.ClearProgressBar();
+                Debug.LogError($"Error during build and update: {e.Message}");
+                EditorUtility.DisplayDialog("Error", $"Build and update failed: {e.Message}", "OK");
             }
         }
         
@@ -525,6 +692,84 @@ namespace mOUND
             }
         }
         
+        // Modern .NET 6 async login method
+        private async Task LoginAsync()
+        {
+            try
+            {
+                isValidatingToken = true;
+                Debug.Log($"🔧 mOUND: === .NET 6 LOGIN START ===");
+                Debug.Log($"🔧 mOUND: Username: {username}");
+                Debug.Log($"🔧 mOUND: Using HttpClient for login");
+                
+                // Configure HttpClient
+                httpClient.DefaultRequestHeaders.Clear();
+                httpClient.DefaultRequestHeaders.Add("User-Agent", "Unity-mOUND-Plugin-NET6/1.0.0");
+                httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+                httpClient.Timeout = TimeSpan.FromSeconds(30);
+                
+                string url = $"{apiUrl}/api/auth/login";
+                Debug.Log($"🔧 mOUND: Requesting: {url}");
+                
+                // Create login payload
+                var loginData = new
+                {
+                    username = this.username,
+                    password = this.password
+                };
+                
+                string jsonData = JsonUtility.ToJson(loginData);
+                Debug.Log($"🔧 mOUND: Login payload: {jsonData}");
+                
+                var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+                var response = await httpClient.PostAsync(url, content);
+                
+                Debug.Log($"🔧 mOUND: Login Response Status: {response.StatusCode}");
+                
+                string responseText = await response.Content.ReadAsStringAsync();
+                Debug.Log($"🔧 mOUND: Login Response Text: {responseText}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    Debug.Log($"✅ mOUND: .NET 6 HttpClient login SUCCESS!");
+                    
+                    var loginResponse = JsonUtility.FromJson<LoginResponse>(responseText);
+                    authToken = loginResponse.token;
+                    username = loginResponse.user.username;
+                    isLoggedIn = true;
+                    
+                    SaveCredentials();
+                    EditorUtility.DisplayDialog("Success", 
+                        "✅ Login successful with .NET 6 HttpClient!\nFetching organizations...", "OK");
+                    
+                    // Fetch organizations
+                    await FetchOrganizationsAsync();
+                }
+                else
+                {
+                    string errorMsg = $".NET 6 HttpClient login failed:\nStatus: {response.StatusCode}\nResponse: {responseText}";
+                    Debug.LogError($"❌ mOUND: {errorMsg}");
+                    EditorUtility.DisplayDialog("Login Failed", errorMsg, "OK");
+                }
+            }
+            catch (HttpRequestException e)
+            {
+                string errorMsg = $"Network error during login:\n{e.Message}";
+                Debug.LogError($"🌐 mOUND: {errorMsg}");
+                EditorUtility.DisplayDialog("Network Error", errorMsg, "OK");
+            }
+            catch (Exception e)
+            {
+                string errorMsg = $"Login error:\n{e.Message}";
+                Debug.LogError($"❌ mOUND: {errorMsg}");
+                EditorUtility.DisplayDialog("Error", errorMsg, "OK");
+            }
+            finally
+            {
+                isValidatingToken = false;
+            }
+        }
+        
         // Modern .NET 6 async method for Unity 6 compatibility
         private async Task ValidateTokenAsync()
         {
@@ -625,10 +870,33 @@ namespace mOUND
                 
                 if (response.IsSuccessStatusCode)
                 {
-                    var orgResponse = JsonUtility.FromJson<OrganizationsResponse>(responseText);
+                    // The response is a direct array, not an object with organizations property
+                    // Need to wrap it for JsonUtility
+                    string wrappedJson = "{\"items\":" + responseText + "}";
+                    Debug.Log($"🔧 mOUND: Wrapped JSON: {wrappedJson}");
+                    
+                    var orgWrapper = JsonUtility.FromJson<OrganizationWrapper>(wrappedJson);
                     organizations.Clear();
-                    organizations.AddRange(orgResponse.organizations);
+                    
+                    // Convert OrganizationData to Organization
+                    foreach (var orgData in orgWrapper.items)
+                    {
+                        organizations.Add(new Organization
+                        {
+                            id = orgData._id,
+                            name = orgData.name
+                        });
+                    }
+                    
                     Debug.Log($"🔧 mOUND: Loaded {organizations.Count} organizations");
+                    
+                    // Reset organization selection
+                    selectedOrgIndex = 0;
+                    if (organizations.Count > 0)
+                    {
+                        organizationId = organizations[0].id;
+                        Debug.Log($"🔧 mOUND: Selected first organization: {organizations[0].name}");
+                    }
                 }
                 else
                 {
@@ -638,6 +906,42 @@ namespace mOUND
             catch (Exception e)
             {
                 Debug.LogError($"❌ mOUND: Error fetching organizations: {e.Message}");
+            }
+        }
+        
+        private async Task FetchApplicationsAsync(string orgId)
+        {
+            try
+            {
+                Debug.Log($"🔧 mOUND: Fetching applications for organization: {orgId}");
+                
+                string url = $"{apiUrl}/api/applications?organizationId={orgId}";
+                var response = await httpClient.GetAsync(url);
+                string responseText = await response.Content.ReadAsStringAsync();
+                
+                Debug.Log($"🔧 mOUND: Applications response: {responseText}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    // Parse applications array
+                    string wrappedJson = "{\"items\":" + responseText + "}";
+                    var appWrapper = JsonUtility.FromJson<ApplicationWrapper>(wrappedJson);
+                    existingApps.Clear();
+                    existingApps.AddRange(appWrapper.items);
+                    
+                    Debug.Log($"🔧 mOUND: Loaded {existingApps.Count} existing applications");
+                    selectedAppIndex = -1; // Reset to "Create New"
+                }
+                else
+                {
+                    Debug.LogError($"❌ mOUND: Failed to fetch applications: {response.StatusCode}");
+                    existingApps.Clear();
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"❌ mOUND: Error fetching applications: {e.Message}");
+                existingApps.Clear();
             }
         }
         
@@ -844,6 +1148,114 @@ namespace mOUND
             
             EditorPrefs.DeleteKey("mOUND_AuthToken");
             EditorPrefs.SetBool("mOUND_IsLoggedIn", false);
+        }
+        
+        private IEnumerator UploadZipFile(string zipPath)
+        {
+            Debug.Log($"📤 mOUND: Starting upload of {zipPath}");
+            
+            byte[] zipData = File.ReadAllBytes(zipPath);
+            
+            using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications", "POST"))
+            {
+                // Create form data
+                List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+                formData.Add(new MultipartFormDataSection("name", appName));
+                formData.Add(new MultipartFormDataSection("description", appDescription));
+                formData.Add(new MultipartFormDataSection("organizationId", organizationId));
+                formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
+                formData.Add(new MultipartFormFileSection("file", zipData, appName + ".zip", "application/zip"));
+                
+                request.uploadHandler = new UploadHandlerRaw(UnityWebRequest.SerializeFormSections(formData, UnityWebRequest.GenerateBoundary()));
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Authorization", "Bearer " + authToken);
+                request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                request.timeout = 300; // 5 minute timeout for uploads
+                
+                // Unity 6 certificate handler
+                request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                request.disposeCertificateHandlerOnDispose = true;
+                
+                yield return request.SendWebRequest();
+                
+                EditorUtility.ClearProgressBar();
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    Debug.Log($"✅ mOUND: Upload successful!");
+                    EditorUtility.DisplayDialog("Success", "Application uploaded successfully!", "OK");
+                    
+                    // Clean up
+                    if (File.Exists(zipPath))
+                    {
+                        File.Delete(zipPath);
+                    }
+                    if (Directory.Exists("Builds/WebGL"))
+                    {
+                        Directory.Delete("Builds/WebGL", true);
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"❌ mOUND: Upload failed: {request.error}");
+                    EditorUtility.DisplayDialog("Upload Failed", $"Upload failed: {request.error}", "OK");
+                }
+            }
+        }
+        
+        private IEnumerator UpdateAppCoroutine(string appId, string zipPath)
+        {
+            Debug.Log($"🔄 mOUND: Starting update of app {appId} with {zipPath}");
+            
+            byte[] zipData = File.ReadAllBytes(zipPath);
+            
+            using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications/" + appId, "PUT"))
+            {
+                // Create form data for update
+                List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+                formData.Add(new MultipartFormDataSection("name", appName));
+                formData.Add(new MultipartFormDataSection("description", appDescription));
+                formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
+                formData.Add(new MultipartFormFileSection("file", zipData, appName + "_update.zip", "application/zip"));
+                
+                request.uploadHandler = new UploadHandlerRaw(UnityWebRequest.SerializeFormSections(formData, UnityWebRequest.GenerateBoundary()));
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Authorization", "Bearer " + authToken);
+                request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                request.timeout = 300; // 5 minute timeout for uploads
+                
+                // Unity 6 certificate handler
+                request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                request.disposeCertificateHandlerOnDispose = true;
+                
+                yield return request.SendWebRequest();
+                
+                EditorUtility.ClearProgressBar();
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    Debug.Log($"✅ mOUND: App update successful!");
+                    EditorUtility.DisplayDialog("Success", $"Application '{appName}' updated successfully!", "OK");
+                    
+                    // Refresh the apps list
+                    _ = FetchApplicationsAsync(organizationId);
+                    
+                    // Clean up
+                    if (File.Exists(zipPath))
+                    {
+                        File.Delete(zipPath);
+                    }
+                    if (Directory.Exists("Builds/WebGL"))
+                    {
+                        Directory.Delete("Builds/WebGL", true);
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"❌ mOUND: App update failed: {request.error}");
+                    EditorUtility.DisplayDialog("Update Failed", $"App update failed: {request.error}", "OK");
+                }
+            }
         }
         
         private void StartCoroutine(IEnumerator coroutine)
