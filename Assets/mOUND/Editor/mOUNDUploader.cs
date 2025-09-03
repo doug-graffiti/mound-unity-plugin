@@ -1099,7 +1099,7 @@ namespace mOUND
             {
                 Debug.LogError($"❌ mOUND: ZIP file not found: {zipPath}");
                 EditorUtility.DisplayDialog("Error", $"ZIP file not found: {zipPath}", "OK");
-                return;
+                yield break;
             }
             
             byte[] zipData = File.ReadAllBytes(zipPath);
