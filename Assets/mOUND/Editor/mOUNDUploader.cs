@@ -1467,6 +1467,7 @@ namespace mOUND
             
             string signedUrl = "";
             string uniqueFileName = "";
+            string storageProvider = "";
             
             using (UnityWebRequest signedUrlRequest = new UnityWebRequest(signedUrlEndpoint, "POST"))
             {
@@ -1500,9 +1501,10 @@ namespace mOUND
                         var jsonResponse = JsonUtility.FromJson<SignedUrlResponse>(responseText);
                         signedUrl = jsonResponse.uploadUrl;
                         uniqueFileName = jsonResponse.fileName;
+                        storageProvider = jsonResponse.provider;
                         
                         Debug.Log($"☁️ mOUND: Got signed URL for file: {uniqueFileName}");
-                        Debug.Log($"☁️ mOUND: Storage provider: {jsonResponse.provider}");
+                        Debug.Log($"☁️ mOUND: Storage provider: {storageProvider}");
                     }
                     catch (System.Exception e)
                     {
@@ -1526,10 +1528,7 @@ namespace mOUND
             using (UnityWebRequest uploadRequest = UnityWebRequest.Put(signedUrl, zipData))
             {
                 // Set provider-specific headers
-                var jsonResponse = JsonUtility.FromJson<SignedUrlResponse>(signedUrlRequest.downloadHandler.text);
-                string provider = jsonResponse.provider;
-                
-                switch (provider)
+                switch (storageProvider)
                 {
                     case "azure-blob":
                         uploadRequest.SetRequestHeader("x-ms-blob-type", "BlockBlob");
@@ -1550,7 +1549,7 @@ namespace mOUND
                 uploadRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
                 uploadRequest.disposeCertificateHandlerOnDispose = true;
                 
-                Debug.Log($"☁️ mOUND: Uploading {zipData.Length} bytes to {provider} storage...");
+                Debug.Log($"☁️ mOUND: Uploading {zipData.Length} bytes to {storageProvider} storage...");
                 
                 yield return uploadRequest.SendWebRequest();
                 
@@ -1559,19 +1558,19 @@ namespace mOUND
                     yield return null;
                 }
                 
-                Debug.Log($"☁️ mOUND: {provider} upload result: {uploadRequest.result}");
-                Debug.Log($"☁️ mOUND: {provider} response code: {uploadRequest.responseCode}");
+                Debug.Log($"☁️ mOUND: {storageProvider} upload result: {uploadRequest.result}");
+                Debug.Log($"☁️ mOUND: {storageProvider} response code: {uploadRequest.responseCode}");
                 
                 if (uploadRequest.result != UnityWebRequest.Result.Success)
                 {
-                    string errorMsg = $"{provider} upload failed:\nResult: {uploadRequest.result}\nResponse Code: {uploadRequest.responseCode}\nError: {uploadRequest.error ?? "None"}";
+                    string errorMsg = $"{storageProvider} upload failed:\nResult: {uploadRequest.result}\nResponse Code: {uploadRequest.responseCode}\nError: {uploadRequest.error ?? "None"}";
                     Debug.LogError($"❌ mOUND: {errorMsg}");
                     EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
                     EditorUtility.ClearProgressBar();
                     yield break;
                 }
                 
-                Debug.Log($"✅ mOUND: File uploaded to {provider} successfully!");
+                Debug.Log($"✅ mOUND: File uploaded to {storageProvider} successfully!");
             }
             
             // Step 3: Notify server that upload is complete
