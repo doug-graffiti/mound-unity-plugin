@@ -505,20 +505,28 @@ namespace mOUND
         private IEnumerator ValidateToken()
         {
             Debug.Log($"🔐 mOUND: Validating token...");
+            Debug.Log($"🔐 mOUND: Token length: {authToken.Length}");
+            Debug.Log($"🔐 mOUND: Token preview: {authToken.Substring(0, Math.Min(20, authToken.Length))}...");
             
             using (UnityWebRequest request = UnityWebRequest.Get(apiUrl + "/api/auth/me"))
             {
                 request.SetRequestHeader("Authorization", "Bearer " + authToken);
                 request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                request.SetRequestHeader("Accept", "application/json");
                 request.timeout = 30;
                 
                 // Unity 6 certificate handler
                 request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
                 request.disposeCertificateHandlerOnDispose = true;
                 
+                Debug.Log($"🔐 mOUND: Sending validation request to {request.url}");
+                
                 yield return request.SendWebRequest();
                 
-                Debug.Log($"🔐 mOUND: Token validation response: {request.responseCode}");
+                Debug.Log($"🔐 mOUND: Token validation response code: {request.responseCode}");
+                Debug.Log($"🔐 mOUND: Token validation response: {request.downloadHandler.text}");
+                Debug.Log($"🔐 mOUND: Request result: {request.result}");
+                Debug.Log($"🔐 mOUND: Error (if any): {request.error}");
                 
                 if (request.result == UnityWebRequest.Result.Success)
                 {
@@ -530,10 +538,13 @@ namespace mOUND
                     {
                         var response = JsonUtility.FromJson<LoginResponse>(request.downloadHandler.text);
                         username = response.user.username;
+                        Debug.Log($"🔐 mOUND: Username set to: {username}");
                     }
-                    catch
+                    catch (System.Exception e)
                     {
-                        // If parsing fails, keep existing username
+                        Debug.LogWarning($"🔐 mOUND: Could not parse username from response: {e.Message}");
+                        // If parsing fails, use a default username
+                        username = "Unity User";
                     }
                     
                     SaveCredentials();
@@ -541,9 +552,28 @@ namespace mOUND
                 }
                 else
                 {
-                    Debug.LogError($"🔐 mOUND: Token validation failed: {request.error}");
-                    // Token is invalid
-                    Logout();
+                    string errorMsg;
+                    if (request.responseCode == 0)
+                    {
+                        errorMsg = $"Network error: {request.error}. Check your internet connection.";
+                    }
+                    else if (request.responseCode == 401)
+                    {
+                        errorMsg = "Invalid or expired token. Please generate a new token from the Profile page.";
+                    }
+                    else
+                    {
+                        errorMsg = $"HTTP {request.responseCode}: {request.downloadHandler.text}";
+                    }
+                    
+                    Debug.LogError($"🔐 mOUND: Token validation failed: {errorMsg}");
+                    EditorUtility.DisplayDialog("Token Validation Failed", errorMsg, "OK");
+                    
+                    // Don't auto-logout on network errors, only on auth errors
+                    if (request.responseCode == 401 || request.responseCode == 403)
+                    {
+                        Logout();
+                    }
                 }
             }
         }
