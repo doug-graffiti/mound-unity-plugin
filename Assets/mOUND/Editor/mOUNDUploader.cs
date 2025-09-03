@@ -1217,12 +1217,12 @@ namespace mOUND
             long fileSizeMB = zipData.Length / (1024 * 1024);
             Debug.Log($"📤 mOUND: ZIP file size: {zipData.Length} bytes ({fileSizeMB} MB)");
             
-            // Check file size limits (common server limits are 50-100MB)
+            // Check file size limits
             if (zipData.Length > 100 * 1024 * 1024) // 100MB
             {
                 EditorUtility.ClearProgressBar();
                 string sizeWarning = $"ZIP file is too large: {fileSizeMB} MB\n\n" +
-                                   "Server limit is typically 100MB.\n\n" +
+                                   "Server limit is 100MB.\n\n" +
                                    "Solutions:\n" +
                                    "• Enable WebGL compression in Build Settings\n" +
                                    "• Remove large assets from build\n" +
@@ -1233,21 +1233,16 @@ namespace mOUND
                 EditorUtility.DisplayDialog("File Too Large", sizeWarning, "OK");
                 yield break;
             }
-            else if (zipData.Length > 50 * 1024 * 1024) // 50MB warning
+            
+            // Use signed URL upload for files > 30MB (Cloud Run limit is 32MB)
+            if (zipData.Length > 30 * 1024 * 1024)
             {
-                string sizeWarning = $"Large file warning: {fileSizeMB} MB\n\n" +
-                                   "This may fail on some servers.\n" +
-                                   "Consider optimizing your build.";
-                
-                Debug.LogWarning($"⚠️ mOUND: {sizeWarning}");
-                
-                if (!EditorUtility.DisplayDialog("Large File Warning", 
-                    sizeWarning + "\n\nContinue upload anyway?", "Yes", "Cancel"))
-                {
-                    EditorUtility.ClearProgressBar();
-                    yield break;
-                }
+                Debug.Log($"📤 mOUND: File > 30MB, using signed URL upload to bypass Cloud Run limit");
+                yield return UploadViaSignedUrl(zipPath, zipData, organizationId, isPublic, false, "", "");
+                yield break;
             }
+            
+            Debug.Log($"📤 mOUND: File <= 30MB, using direct upload");
             
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications", "POST"))
             {
@@ -1353,21 +1348,16 @@ namespace mOUND
                 EditorUtility.DisplayDialog("Update File Too Large", sizeWarning, "OK");
                 yield break;
             }
-            else if (zipData.Length > 50 * 1024 * 1024) // 50MB warning
+            
+            // Use signed URL upload for files > 30MB (Cloud Run limit is 32MB)
+            if (zipData.Length > 30 * 1024 * 1024)
             {
-                string sizeWarning = $"Large update file warning: {fileSizeMB} MB\n\n" +
-                                   "This may fail on some servers.\n" +
-                                   "Consider optimizing your build.";
-                
-                Debug.LogWarning($"⚠️ mOUND: {sizeWarning}");
-                
-                if (!EditorUtility.DisplayDialog("Large Update Warning", 
-                    sizeWarning + "\n\nContinue update anyway?", "Yes", "Cancel"))
-                {
-                    EditorUtility.ClearProgressBar();
-                    yield break;
-                }
+                Debug.Log($"📤 mOUND: Update file > 30MB, using signed URL upload to bypass Cloud Run limit");
+                yield return UploadViaSignedUrl(zipPath, zipData, "", isPublic, true, appId, changelogText);
+                yield break;
             }
+            
+            Debug.Log($"📤 mOUND: Update file <= 30MB, using direct upload");
             
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications/" + appId + "/versions", "POST"))
             {
@@ -1457,5 +1447,176 @@ namespace mOUND
                 Debug.LogError("Coroutine error: " + e.Message);
             }
         }
+        
+        // Signed URL upload method for large files (>30MB)
+        private IEnumerator UploadViaSignedUrl(string zipPath, byte[] zipData, string organizationId, bool isPublic, bool isUpdate, string appId, string changelogText)
+        {
+            Debug.Log($"☁️ mOUND: === SIGNED URL UPLOAD START ===");
+            
+            string fileName = Path.GetFileName(zipPath);
+            long fileSize = zipData.Length;
+            long fileSizeMB = fileSize / (1024 * 1024);
+            
+            Debug.Log($"☁️ mOUND: File: {fileName}, Size: {fileSize} bytes ({fileSizeMB} MB)");
+            Debug.Log($"☁️ mOUND: Is Update: {isUpdate}, App ID: {appId}");
+            
+            // Step 1: Get signed URL from server
+            string signedUrlEndpoint = isUpdate 
+                ? $"{apiUrl}/api/applications/{appId}/versions/signed-url"
+                : $"{apiUrl}/api/upload/signed-url";
+            
+            string signedUrl = "";
+            string uniqueFileName = "";
+            
+            using (UnityWebRequest signedUrlRequest = new UnityWebRequest(signedUrlEndpoint, "POST"))
+            {
+                string requestJson = isUpdate 
+                    ? $"{{\"fileName\":\"{fileName}\",\"fileSize\":{fileSize},\"changelog\":\"{changelogText}\"}}"
+                    : $"{{\"fileName\":\"{fileName}\",\"fileSize\":{fileSize},\"organizationId\":\"{organizationId}\"}}";
+                
+                byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(requestJson);
+                
+                signedUrlRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                signedUrlRequest.downloadHandler = new DownloadHandlerBuffer();
+                signedUrlRequest.SetRequestHeader("Content-Type", "application/json");
+                signedUrlRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
+                signedUrlRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                signedUrlRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                signedUrlRequest.disposeCertificateHandlerOnDispose = true;
+                
+                Debug.Log($"☁️ mOUND: Requesting signed URL from: {signedUrlEndpoint}");
+                Debug.Log($"☁️ mOUND: Request JSON: {requestJson}");
+                
+                yield return signedUrlRequest.SendWebRequest();
+                
+                if (signedUrlRequest.result == UnityWebRequest.Result.Success)
+                {
+                    string responseText = signedUrlRequest.downloadHandler.text;
+                    Debug.Log($"☁️ mOUND: Signed URL response: {responseText}");
+                    
+                    // Parse the response to get the signed URL
+                    try
+                    {
+                        var jsonResponse = JsonUtility.FromJson<SignedUrlResponse>(responseText);
+                        signedUrl = jsonResponse.uploadUrl;
+                        uniqueFileName = jsonResponse.fileName;
+                        
+                        Debug.Log($"☁️ mOUND: Got signed URL for file: {uniqueFileName}");
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogError($"❌ mOUND: Failed to parse signed URL response: {e.Message}");
+                        EditorUtility.DisplayDialog("Error", "Failed to get upload URL from server", "OK");
+                        EditorUtility.ClearProgressBar();
+                        yield break;
+                    }
+                }
+                else
+                {
+                    string errorMsg = $"Failed to get signed URL:\nResult: {signedUrlRequest.result}\nResponse Code: {signedUrlRequest.responseCode}\nError: {signedUrlRequest.error ?? "None"}";
+                    Debug.LogError($"❌ mOUND: {errorMsg}");
+                    EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+            }
+            
+            // Step 2: Upload directly to Azure Blob Storage using signed URL
+            using (UnityWebRequest uploadRequest = UnityWebRequest.Put(signedUrl, zipData))
+            {
+                uploadRequest.SetRequestHeader("x-ms-blob-type", "BlockBlob");
+                uploadRequest.SetRequestHeader("Content-Type", "application/zip");
+                uploadRequest.timeout = 600; // 10 minute timeout for large uploads
+                uploadRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                uploadRequest.disposeCertificateHandlerOnDispose = true;
+                
+                Debug.Log($"☁️ mOUND: Uploading {zipData.Length} bytes to Azure Blob Storage...");
+                
+                yield return uploadRequest.SendWebRequest();
+                
+                while (!uploadRequest.isDone)
+                {
+                    yield return null;
+                }
+                
+                Debug.Log($"☁️ mOUND: Azure upload result: {uploadRequest.result}");
+                Debug.Log($"☁️ mOUND: Azure response code: {uploadRequest.responseCode}");
+                
+                if (uploadRequest.result != UnityWebRequest.Result.Success)
+                {
+                    string errorMsg = $"Azure upload failed:\nResult: {uploadRequest.result}\nResponse Code: {uploadRequest.responseCode}\nError: {uploadRequest.error ?? "None"}";
+                    Debug.LogError($"❌ mOUND: {errorMsg}");
+                    EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+                
+                Debug.Log($"✅ mOUND: File uploaded to Azure successfully!");
+            }
+            
+            // Step 3: Notify server that upload is complete
+            string completeEndpoint = isUpdate 
+                ? $"{apiUrl}/api/applications/{appId}/versions/from-signed-upload"
+                : $"{apiUrl}/api/applications/from-signed-upload";
+            
+            using (UnityWebRequest completeRequest = new UnityWebRequest(completeEndpoint, "POST"))
+            {
+                string completeJson = isUpdate 
+                    ? $"{{\"fileName\":\"{uniqueFileName}\",\"fileSize\":{zipData.Length},\"changelog\":\"{changelogText}\"}}"
+                    : $"{{\"name\":\"{appName}\",\"description\":\"{appDescription}\",\"organizationId\":\"{organizationId}\",\"isPublic\":{isPublic.ToString().ToLower()},\"fileName\":\"{uniqueFileName}\",\"fileSize\":{zipData.Length}}}";
+                
+                byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(completeJson);
+                
+                completeRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                completeRequest.downloadHandler = new DownloadHandlerBuffer();
+                completeRequest.SetRequestHeader("Content-Type", "application/json");
+                completeRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
+                completeRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                completeRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                completeRequest.disposeCertificateHandlerOnDispose = true;
+                
+                Debug.Log($"☁️ mOUND: Notifying server upload complete: {completeEndpoint}");
+                Debug.Log($"☁️ mOUND: Complete JSON: {completeJson}");
+                
+                yield return completeRequest.SendWebRequest();
+                
+                while (!completeRequest.isDone)
+                {
+                    yield return null;
+                }
+                
+                EditorUtility.ClearProgressBar();
+                
+                if (completeRequest.result == UnityWebRequest.Result.Success)
+                {
+                    string successMsg = isUpdate ? "Application updated successfully!" : "Application uploaded successfully!";
+                    Debug.Log($"✅ mOUND: {successMsg}");
+                    EditorUtility.DisplayDialog("Success", successMsg, "OK");
+                    
+                    // Clean up
+                    if (File.Exists(zipPath))
+                    {
+                        File.Delete(zipPath);
+                        Debug.Log($"🗑️ mOUND: Cleaned up ZIP file: {zipPath}");
+                    }
+                }
+                else
+                {
+                    string errorMsg = $"Failed to complete {(isUpdate ? "update" : "upload")}:\nResult: {completeRequest.result}\nResponse Code: {completeRequest.responseCode}\nError: {completeRequest.error ?? "None"}\nResponse: {completeRequest.downloadHandler?.text ?? "None"}";
+                    Debug.LogError($"❌ mOUND: {errorMsg}");
+                    EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
+                }
+            }
+        }
     }
+}
+
+// Helper classes for JSON serialization
+[System.Serializable]
+public class SignedUrlResponse
+{
+    public string uploadUrl;
+    public string fileName;
+    public string expiresAt;
+    public string appId;
 }
