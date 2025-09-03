@@ -73,6 +73,18 @@ Edit > Project Settings > Player > WebGL Settings:
 
 ## 🔍 **Troubleshooting Unity Configuration**
 
+### **"Check your internet connection" (Instant Failure):**
+1. **Unity Editor Network Restrictions** - Most common in Unity 6
+2. **Try the "🌐 Test Basic Connectivity" button first**
+3. **Check Project Settings**:
+   - `Edit > Project Settings > Player > Configuration`
+   - **API Compatibility Level**: `.NET Standard 2.1` (NOT .NET Framework)
+4. **Unity Editor Network Settings**:
+   - `Unity > Preferences > External Tools`
+   - Ensure no proxy settings are blocking requests
+5. **Windows Firewall/Antivirus**: May block Unity Editor network requests
+6. **Corporate Network**: May have restrictions on Unity Editor
+
 ### **"WebGL not available" Error:**
 1. Install WebGL Build Support via Unity Hub
 2. Restart Unity Editor

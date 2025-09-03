@@ -142,6 +142,13 @@ namespace mOUND
             {
                 Application.OpenURL(apiUrl + "/profile");
             }
+            
+            EditorGUILayout.Space(5);
+            
+            if (GUILayout.Button("🌐 Test Basic Connectivity", GUILayout.Height(25)))
+            {
+                StartCoroutine(TestConnectivity());
+            }
         }
         
         private void DrawLoggedInSection()
@@ -505,12 +512,55 @@ namespace mOUND
             }
         }
         
+        private IEnumerator TestConnectivity()
+        {
+            Debug.Log($"🌐 mOUND: === CONNECTIVITY TEST START ===");
+            Debug.Log($"🌐 mOUND: Testing connection to: {apiUrl}");
+            Debug.Log($"🌐 mOUND: Unity Version: {Application.unityVersion}");
+            Debug.Log($"🌐 mOUND: Is Editor: {Application.isEditor}");
+            
+            // Test 1: Simple GET to main domain
+            using (UnityWebRequest request = UnityWebRequest.Get(apiUrl))
+            {
+                request.timeout = 10;
+                request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                request.disposeCertificateHandlerOnDispose = true;
+                
+                Debug.Log($"🌐 mOUND: Sending basic GET request...");
+                yield return request.SendWebRequest();
+                
+                Debug.Log($"🌐 mOUND: Basic connectivity result: {request.result}");
+                Debug.Log($"🌐 mOUND: Response code: {request.responseCode}");
+                Debug.Log($"🌐 mOUND: Error: {request.error ?? "None"}");
+                
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    Debug.Log($"✅ mOUND: Basic connectivity SUCCESS");
+                    EditorUtility.DisplayDialog("Connectivity Test", "✅ Basic connectivity successful!\nNetwork is working.", "OK");
+                }
+                else
+                {
+                    Debug.LogError($"❌ mOUND: Basic connectivity FAILED");
+                    string errorMsg = $"Connectivity test failed:\nResult: {request.result}\nCode: {request.responseCode}\nError: {request.error}";
+                    Debug.LogError($"❌ mOUND: {errorMsg}");
+                    EditorUtility.DisplayDialog("Connectivity Test Failed", errorMsg, "OK");
+                }
+            }
+        }
+        
         private IEnumerator ValidateToken()
         {
             isValidatingToken = true;
-            Debug.Log($"🔐 mOUND: Validating token...");
+            Debug.Log($"🔐 mOUND: === TOKEN VALIDATION START ===");
+            Debug.Log($"🔐 mOUND: Unity Version: {Application.unityVersion}");
+            Debug.Log($"🔐 mOUND: Platform: {Application.platform}");
+            Debug.Log($"🔐 mOUND: API URL: {apiUrl}");
+            Debug.Log($"🔐 mOUND: Full validation URL: {apiUrl}/api/auth/me");
             Debug.Log($"🔐 mOUND: Token length: {authToken.Length}");
             Debug.Log($"🔐 mOUND: Token preview: {authToken.Substring(0, Math.Min(20, authToken.Length))}...");
+            
+            // First test basic connectivity
+            Debug.Log($"🌐 mOUND: Testing basic connectivity to {apiUrl}");
             
             using (UnityWebRequest request = UnityWebRequest.Get(apiUrl + "/api/auth/me"))
             {
@@ -527,10 +577,26 @@ namespace mOUND
                 
                 yield return request.SendWebRequest();
                 
-                Debug.Log($"🔐 mOUND: Token validation response code: {request.responseCode}");
-                Debug.Log($"🔐 mOUND: Token validation response: {request.downloadHandler.text}");
-                Debug.Log($"🔐 mOUND: Request result: {request.result}");
-                Debug.Log($"🔐 mOUND: Error (if any): {request.error}");
+                Debug.Log($"🔐 mOUND: === REQUEST COMPLETED ===");
+                Debug.Log($"🔐 mOUND: Response Code: {request.responseCode}");
+                Debug.Log($"🔐 mOUND: Request Result: {request.result}");
+                Debug.Log($"🔐 mOUND: Error: {request.error ?? "None"}");
+                Debug.Log($"🔐 mOUND: Response Text Length: {request.downloadHandler?.text?.Length ?? 0}");
+                Debug.Log($"🔐 mOUND: Response Text: {request.downloadHandler?.text ?? "NULL"}");
+                Debug.Log($"🔐 mOUND: Request URL: {request.url}");
+                Debug.Log($"🔐 mOUND: Request Method: {request.method}");
+                
+                // Check for immediate network failures
+                if (request.result == UnityWebRequest.Result.ConnectionError || 
+                    request.result == UnityWebRequest.Result.ProtocolError ||
+                    request.responseCode == 0)
+                {
+                    Debug.LogError($"🌐 mOUND: NETWORK FAILURE DETECTED");
+                    Debug.LogError($"🌐 mOUND: This is likely a Unity Editor networking issue");
+                    Debug.LogError($"🌐 mOUND: Response Code: {request.responseCode}");
+                    Debug.LogError($"🌐 mOUND: Error: {request.error}");
+                    Debug.LogError($"🌐 mOUND: Result: {request.result}");
+                }
                 
                 if (request.result == UnityWebRequest.Result.Success)
                 {
