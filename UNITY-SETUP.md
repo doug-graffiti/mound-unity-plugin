@@ -85,6 +85,16 @@ Edit > Project Settings > Player > WebGL Settings:
 5. **Windows Firewall/Antivirus**: May block Unity Editor network requests
 6. **Corporate Network**: May have restrictions on Unity Editor
 
+#### **🔧 If All Connectivity Tests Fail:**
+1. **Try Unity 2022.3 LTS** instead of Unity 6 (more stable networking)
+2. **Check Windows Firewall**:
+   - Allow Unity Editor through Windows Defender Firewall
+   - Add exception for Unity Hub and Unity Editor
+3. **Disable Antivirus temporarily** to test
+4. **Try different network** (mobile hotspot, different WiFi)
+5. **Run Unity as Administrator** (Windows only)
+6. **Alternative**: Use the web platform directly for now
+
 ### **"WebGL not available" Error:**
 1. Install WebGL Build Support via Unity Hub
 2. Restart Unity Editor

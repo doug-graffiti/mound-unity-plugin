@@ -515,37 +515,92 @@ namespace mOUND
         private IEnumerator TestConnectivity()
         {
             Debug.Log($"🌐 mOUND: === CONNECTIVITY TEST START ===");
-            Debug.Log($"🌐 mOUND: Testing connection to: {apiUrl}");
             Debug.Log($"🌐 mOUND: Unity Version: {Application.unityVersion}");
             Debug.Log($"🌐 mOUND: Is Editor: {Application.isEditor}");
+            Debug.Log($"🌐 mOUND: Internet Reachability: {Application.internetReachability}");
             
-            // Test 1: Simple GET to main domain
+            bool anySuccess = false;
+            string testResults = "";
+            
+            // Test 1: HTTP (non-SSL) request to Google
+            Debug.Log($"🌐 mOUND: Test 1 - HTTP request to Google...");
+            using (UnityWebRequest request = UnityWebRequest.Get("http://www.google.com"))
+            {
+                request.timeout = 10;
+                yield return request.SendWebRequest();
+                
+                Debug.Log($"🌐 mOUND: Google HTTP - Result: {request.result}, Code: {request.responseCode}");
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    anySuccess = true;
+                    testResults += "✅ Google HTTP: SUCCESS\n";
+                }
+                else
+                {
+                    testResults += $"❌ Google HTTP: {request.result} ({request.responseCode})\n";
+                }
+            }
+            
+            // Test 2: HTTPS request to Google
+            Debug.Log($"🌐 mOUND: Test 2 - HTTPS request to Google...");
+            using (UnityWebRequest request = UnityWebRequest.Get("https://www.google.com"))
+            {
+                request.timeout = 10;
+                request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                request.disposeCertificateHandlerOnDispose = true;
+                yield return request.SendWebRequest();
+                
+                Debug.Log($"🌐 mOUND: Google HTTPS - Result: {request.result}, Code: {request.responseCode}");
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    anySuccess = true;
+                    testResults += "✅ Google HTTPS: SUCCESS\n";
+                }
+                else
+                {
+                    testResults += $"❌ Google HTTPS: {request.result} ({request.responseCode})\n";
+                }
+            }
+            
+            // Test 3: Our API domain
+            Debug.Log($"🌐 mOUND: Test 3 - mOUND domain...");
             using (UnityWebRequest request = UnityWebRequest.Get(apiUrl))
             {
                 request.timeout = 10;
                 request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
                 request.disposeCertificateHandlerOnDispose = true;
-                
-                Debug.Log($"🌐 mOUND: Sending basic GET request...");
                 yield return request.SendWebRequest();
                 
-                Debug.Log($"🌐 mOUND: Basic connectivity result: {request.result}");
-                Debug.Log($"🌐 mOUND: Response code: {request.responseCode}");
-                Debug.Log($"🌐 mOUND: Error: {request.error ?? "None"}");
-                
+                Debug.Log($"🌐 mOUND: mOUND domain - Result: {request.result}, Code: {request.responseCode}");
                 if (request.result == UnityWebRequest.Result.Success)
                 {
-                    Debug.Log($"✅ mOUND: Basic connectivity SUCCESS");
-                    EditorUtility.DisplayDialog("Connectivity Test", "✅ Basic connectivity successful!\nNetwork is working.", "OK");
+                    anySuccess = true;
+                    testResults += "✅ mOUND Domain: SUCCESS\n";
                 }
                 else
                 {
-                    Debug.LogError($"❌ mOUND: Basic connectivity FAILED");
-                    string errorMsg = $"Connectivity test failed:\nResult: {request.result}\nCode: {request.responseCode}\nError: {request.error}";
-                    Debug.LogError($"❌ mOUND: {errorMsg}");
-                    EditorUtility.DisplayDialog("Connectivity Test Failed", errorMsg, "OK");
+                    testResults += $"❌ mOUND Domain: {request.result} ({request.responseCode})\n";
                 }
             }
+            
+            // Show comprehensive results
+            string title = anySuccess ? "Partial Connectivity" : "No Connectivity";
+            string message = $"Connectivity Test Results:\n\n{testResults}";
+            
+            if (!anySuccess)
+            {
+                message += "\n🚨 UNITY EDITOR NETWORK BLOCKED\n";
+                message += "This is a Unity Editor restriction, not our server.\n\n";
+                message += "Solutions:\n";
+                message += "1. Check API Compatibility Level (.NET Standard 2.1)\n";
+                message += "2. Check Windows Firewall/Antivirus\n";
+                message += "3. Try different Unity version\n";
+                message += "4. Use Unity Hub's Unity 2022.3 LTS";
+            }
+            
+            Debug.Log($"🌐 mOUND: === CONNECTIVITY TEST COMPLETE ===");
+            Debug.Log($"🌐 mOUND: {message}");
+            EditorUtility.DisplayDialog(title, message, "OK");
         }
         
         private IEnumerator ValidateToken()
