@@ -1087,9 +1087,23 @@ namespace mOUND
         
         private IEnumerator UploadZipFile(string zipPath)
         {
-            Debug.Log($"📤 mOUND: Starting upload of {zipPath}");
+            Debug.Log($"📤 mOUND: === UPLOAD START ===");
+            Debug.Log($"📤 mOUND: ZIP Path: {zipPath}");
+            Debug.Log($"📤 mOUND: App Name: {appName}");
+            Debug.Log($"📤 mOUND: Description: {appDescription}");
+            Debug.Log($"📤 mOUND: Organization ID: {organizationId}");
+            Debug.Log($"📤 mOUND: Is Public: {isPublic}");
+            Debug.Log($"📤 mOUND: Auth Token Length: {authToken?.Length ?? 0}");
+            
+            if (!File.Exists(zipPath))
+            {
+                Debug.LogError($"❌ mOUND: ZIP file not found: {zipPath}");
+                EditorUtility.DisplayDialog("Error", $"ZIP file not found: {zipPath}", "OK");
+                return;
+            }
             
             byte[] zipData = File.ReadAllBytes(zipPath);
+            Debug.Log($"📤 mOUND: ZIP file size: {zipData.Length} bytes");
             
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications", "POST"))
             {
@@ -1111,7 +1125,16 @@ namespace mOUND
                 request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
                 request.disposeCertificateHandlerOnDispose = true;
                 
+                Debug.Log($"📤 mOUND: Sending upload request to {request.url}");
+                Debug.Log($"📤 mOUND: Request method: {request.method}");
+                
                 yield return request.SendWebRequest();
+                
+                Debug.Log($"📤 mOUND: === UPLOAD RESPONSE ===");
+                Debug.Log($"📤 mOUND: Response Code: {request.responseCode}");
+                Debug.Log($"📤 mOUND: Result: {request.result}");
+                Debug.Log($"📤 mOUND: Error: {request.error ?? "None"}");
+                Debug.Log($"📤 mOUND: Response Text: {request.downloadHandler?.text ?? "None"}");
                 
                 EditorUtility.ClearProgressBar();
                 
@@ -1132,8 +1155,14 @@ namespace mOUND
                 }
                 else
                 {
-                    Debug.LogError($"❌ mOUND: Upload failed: {request.error}");
-                    EditorUtility.DisplayDialog("Upload Failed", $"Upload failed: {request.error}", "OK");
+                    string errorDetails = $"Upload failed:\n" +
+                                        $"Result: {request.result}\n" +
+                                        $"Response Code: {request.responseCode}\n" +
+                                        $"Error: {request.error ?? "None"}\n" +
+                                        $"Response: {request.downloadHandler?.text ?? "None"}";
+                    
+                    Debug.LogError($"❌ mOUND: {errorDetails}");
+                    EditorUtility.DisplayDialog("Upload Failed", errorDetails, "OK");
                 }
             }
         }
@@ -1187,8 +1216,14 @@ namespace mOUND
                 }
                 else
                 {
-                    Debug.LogError($"❌ mOUND: App update failed: {request.error}");
-                    EditorUtility.DisplayDialog("Update Failed", $"App update failed: {request.error}", "OK");
+                    string errorDetails = $"App update failed:\n" +
+                                        $"Result: {request.result}\n" +
+                                        $"Response Code: {request.responseCode}\n" +
+                                        $"Error: {request.error ?? "None"}\n" +
+                                        $"Response: {request.downloadHandler?.text ?? "None"}";
+                    
+                    Debug.LogError($"❌ mOUND: {errorDetails}");
+                    EditorUtility.DisplayDialog("Update Failed", errorDetails, "OK");
                 }
             }
         }
