@@ -24,11 +24,11 @@
 
 ### 4. **Unity 6 Specific Settings**
 
-#### **API Compatibility Level (CRITICAL)**
+#### **API Compatibility Level (CRITICAL FOR UNITY 6)**
 - Go to `Edit > Project Settings > Player > Configuration`
-- Set **API Compatibility Level** to **`.NET Standard 2.1`** 
-- **NOT** `.NET Framework` (causes networking issues)
-- **NOT** `.NET 6.0` (may cause compatibility issues with WebGL)
+- Set **API Compatibility Level** to **`.NET 6.0`** (Unity 6 preferred)
+- **Alternative**: `.NET Standard 2.1` (fallback option)
+- **AVOID**: `.NET Framework` (causes networking issues in Unity 6)
 
 #### **Network Settings (Important for Unity 6)**
 - Go to `Edit > Project Settings > XR Plug-in Management > Initialize XR on Startup` → **Disable** (if present)
@@ -42,7 +42,7 @@
 #### **Scripting Backend**
 - Go to `Edit > Project Settings > Player > Configuration`
 - **Scripting Backend**: IL2CPP (recommended for WebGL)
-- **Api Compatibility Level**: .NET Standard 2.1
+- **Api Compatibility Level**: .NET 6.0 (Unity 6 preferred) or .NET Standard 2.1 (fallback)
 
 ### 5. **Optional Optimizations**
 
@@ -78,7 +78,7 @@ Edit > Project Settings > Player > WebGL Settings:
 2. **Try the "🌐 Test Basic Connectivity" button first**
 3. **Check Project Settings**:
    - `Edit > Project Settings > Player > Configuration`
-   - **API Compatibility Level**: `.NET Standard 2.1` (NOT .NET Framework)
+   - **API Compatibility Level**: `.NET 6.0` (Unity 6 preferred) or `.NET Standard 2.1`
 4. **Unity Editor Network Settings**:
    - `Unity > Preferences > External Tools`
    - Ensure no proxy settings are blocking requests
@@ -122,7 +122,7 @@ Before using the plugin:
 - [ ] WebGL platform support installed
 - [ ] Project switched to WebGL platform  
 - [ ] At least one scene added to build
-- [ ] **API Compatibility Level** set to **.NET Standard 2.1**
+- [ ] **API Compatibility Level** set to **.NET 6.0** (Unity 6 preferred) or **.NET Standard 2.1**
 - [ ] **Scripting Backend** set to **IL2CPP**
 - [ ] Plugin appears in `mOUND` menu
 - [ ] No compilation errors in Console

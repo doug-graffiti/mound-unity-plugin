@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "displayName": "mOUND Platform Uploader",
   "description": "Unity plugin for building WebGL applications and uploading them directly to the mOUND Platform",
-  "unity": "2021.3",
+  "unity": "2023.1",
+  "unityRelease": "6000.0",
   "keywords": [
     "webgl",
     "build",
     "upload",
     "platform",
-    "deployment"
+    "deployment",
+    "unity6",
+    "dotnet6"
   ],
   "author": {
     "name": "GLLC",

@@ -1,6 +1,6 @@
 # mOUND Unity Plugin 🔧
 
-[![Unity Version](https://img.shields.io/badge/Unity-2021.3%2B%20%7C%206.0%2B-blue.svg)](https://unity3d.com/get-unity/download)
+[![Unity Version](https://img.shields.io/badge/Unity-6.0%2B%20%7C%20.NET%206-blue.svg)](https://unity3d.com/get-unity/download)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-WebGL-orange.svg)](https://docs.unity3d.com/Manual/webgl.html)
 
@@ -17,6 +17,7 @@
 🧹 **Smart Cleanup** - Automatic removal of temporary build files  
 ⚙️ **Persistent Settings** - Remembers your preferences between Unity sessions  
 🌐 **Public/Private Apps** - Control application visibility with one checkbox  
+🔧 **Unity 6 + .NET 6** - Modern async networking with HttpClient and UnityWebRequest fallbacks  
 
 ## 🎯 Quick Start
 
@@ -48,10 +49,20 @@
 
 ## 📋 Requirements
 
-- **Unity**: 2021.3 LTS or newer (including Unity 6.0+)
+- **Unity**: 6.0+ (optimized for Unity 6 with .NET 6)
+- **API Compatibility**: .NET 6.0 (preferred) or .NET Standard 2.1 (fallback)
 - **Platform**: WebGL build support installed
 - **Account**: Active mOUND Platform account
 - **Network**: Internet connection for uploads
+
+## 🔧 Unity 6 + .NET 6 Networking
+
+The plugin provides **dual networking methods** for maximum compatibility:
+
+- **🔧 Try .NET 6 HttpClient Method** - Modern async networking (recommended for Unity 6)
+- **🌐 Test Basic Connectivity** - Fallback UnityWebRequest method with comprehensive diagnostics
+
+If UnityWebRequest fails (common in Unity 6), the .NET 6 HttpClient method often works better.
 
 ## 🛠️ Advanced Configuration
 

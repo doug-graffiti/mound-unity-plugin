@@ -6,6 +6,9 @@ using System.IO.Compression;
 using System.Collections;
 using UnityEngine.Networking;
 using System.Text;
+using System.Threading.Tasks;
+using System.Net.Http;
+using System.Net.Security;
 using System;
 using System.Collections.Generic;
 
@@ -33,6 +36,9 @@ namespace mOUND
         private bool isLoggedIn = false;
         private bool isValidatingToken = false;
         private Vector2 scrollPosition;
+        
+        // Modern .NET 6 HttpClient for better Unity 6 compatibility
+        private static readonly HttpClient httpClient = new HttpClient();
         
         private List<Organization> organizations = new List<Organization>();
         private int selectedOrgIndex = 0;
@@ -148,6 +154,13 @@ namespace mOUND
             if (GUILayout.Button("🌐 Test Basic Connectivity", GUILayout.Height(25)))
             {
                 StartCoroutine(TestConnectivity());
+            }
+            
+            EditorGUILayout.Space(5);
+            
+            if (GUILayout.Button("🔧 Try .NET 6 HttpClient Method", GUILayout.Height(25)))
+            {
+                _ = ValidateTokenAsync(); // Fire and forget async
             }
         }
         
@@ -509,6 +522,122 @@ namespace mOUND
             if (isLoggedIn && !string.IsNullOrEmpty(authToken))
             {
                 StartCoroutine(ValidateToken());
+            }
+        }
+        
+        // Modern .NET 6 async method for Unity 6 compatibility
+        private async Task ValidateTokenAsync()
+        {
+            try
+            {
+                isValidatingToken = true;
+                Debug.Log($"🔧 mOUND: === .NET 6 TOKEN VALIDATION START ===");
+                Debug.Log($"🔧 mOUND: Unity Version: {Application.unityVersion}");
+                Debug.Log($"🔧 mOUND: Using HttpClient instead of UnityWebRequest");
+                Debug.Log($"🔧 mOUND: Token length: {authToken?.Length ?? 0}");
+                
+                // Configure HttpClient for Unity 6
+                httpClient.DefaultRequestHeaders.Clear();
+                httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {authToken}");
+                httpClient.DefaultRequestHeaders.Add("User-Agent", "Unity-mOUND-Plugin-NET6/1.0.0");
+                httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+                httpClient.Timeout = TimeSpan.FromSeconds(30);
+                
+                string url = $"{apiUrl}/api/auth/me";
+                Debug.Log($"🔧 mOUND: Requesting: {url}");
+                
+                var response = await httpClient.GetAsync(url);
+                
+                Debug.Log($"🔧 mOUND: Response Status: {response.StatusCode}");
+                Debug.Log($"🔧 mOUND: Response Headers: {response.Headers}");
+                
+                string responseText = await response.Content.ReadAsStringAsync();
+                Debug.Log($"🔧 mOUND: Response Text: {responseText}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    Debug.Log($"✅ mOUND: .NET 6 HttpClient validation SUCCESS!");
+                    isLoggedIn = true;
+                    
+                    // Parse response
+                    try
+                    {
+                        var loginResponse = JsonUtility.FromJson<LoginResponse>(responseText);
+                        username = loginResponse.user.username;
+                        Debug.Log($"🔧 mOUND: Username: {username}");
+                        
+                        EditorUtility.DisplayDialog("Success", 
+                            "✅ .NET 6 HttpClient validation successful!\nThis method works better in Unity 6.", "OK");
+                        
+                        // Fetch organizations using async method too
+                        _ = FetchOrganizationsAsync();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"🔧 mOUND: JSON parsing error: {e.Message}");
+                        username = "Unity User";
+                        EditorUtility.DisplayDialog("Partial Success", 
+                            "Token validated but couldn't parse user info.\nYou can still proceed.", "OK");
+                    }
+                }
+                else
+                {
+                    string errorMsg = $".NET 6 HttpClient validation failed:\nStatus: {response.StatusCode}\nResponse: {responseText}";
+                    Debug.LogError($"❌ mOUND: {errorMsg}");
+                    EditorUtility.DisplayDialog("Validation Failed", errorMsg, "OK");
+                }
+            }
+            catch (HttpRequestException e)
+            {
+                string errorMsg = $"Network error with .NET 6 HttpClient:\n{e.Message}";
+                Debug.LogError($"🌐 mOUND: {errorMsg}");
+                EditorUtility.DisplayDialog("Network Error", errorMsg, "OK");
+            }
+            catch (TaskCanceledException e)
+            {
+                string errorMsg = "Request timed out (30 seconds)";
+                Debug.LogError($"⏰ mOUND: {errorMsg}");
+                EditorUtility.DisplayDialog("Timeout", errorMsg, "OK");
+            }
+            catch (Exception e)
+            {
+                string errorMsg = $"Unexpected error:\n{e.Message}";
+                Debug.LogError($"❌ mOUND: {errorMsg}");
+                EditorUtility.DisplayDialog("Error", errorMsg, "OK");
+            }
+            finally
+            {
+                isValidatingToken = false;
+            }
+        }
+        
+        private async Task FetchOrganizationsAsync()
+        {
+            try
+            {
+                Debug.Log($"🔧 mOUND: Fetching organizations with .NET 6 HttpClient...");
+                
+                string url = $"{apiUrl}/api/organizations";
+                var response = await httpClient.GetAsync(url);
+                string responseText = await response.Content.ReadAsStringAsync();
+                
+                Debug.Log($"🔧 mOUND: Organizations response: {responseText}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var orgResponse = JsonUtility.FromJson<OrganizationResponse>(responseText);
+                    organizations.Clear();
+                    organizations.AddRange(orgResponse.organizations);
+                    Debug.Log($"🔧 mOUND: Loaded {organizations.Count} organizations");
+                }
+                else
+                {
+                    Debug.LogError($"❌ mOUND: Failed to fetch organizations: {response.StatusCode}");
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"❌ mOUND: Error fetching organizations: {e.Message}");
             }
         }
         
