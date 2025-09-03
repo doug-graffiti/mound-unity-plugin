@@ -103,6 +103,13 @@ namespace mOUND
             public ApplicationData[] items;
         }
         
+        [System.Serializable]
+        public class LoginRequest
+        {
+            public string username;
+            public string password;
+        }
+        
         [MenuItem("mOUND/Build and Upload")]
         public static void ShowWindow()
         {
@@ -475,7 +482,7 @@ namespace mOUND
             Debug.Log($"🔐 mOUND: Username: {username}");
             Debug.Log($"🔐 mOUND: Password length: {password.Length}");
             
-            var loginData = new
+            var loginData = new LoginRequest
             {
                 username = this.username,
                 password = this.password
@@ -640,7 +647,7 @@ namespace mOUND
                 Debug.Log($"🔧 mOUND: Requesting: {url}");
                 
                 // Create login payload
-                var loginData = new
+                var loginData = new LoginRequest
                 {
                     username = this.username,
                     password = this.password
