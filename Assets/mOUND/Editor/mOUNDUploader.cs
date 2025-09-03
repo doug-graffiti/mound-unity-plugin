@@ -1476,6 +1476,22 @@ namespace mOUND
         private IEnumerator UploadViaSignedUrl(string zipPath, byte[] zipData, string organizationId, bool isPublic, bool isUpdate, string appId, string changelogText)
         {
             Debug.Log($"☁️ mOUND: === SIGNED URL UPLOAD START ===");
+            Debug.Log($"☁️ mOUND: Method called with parameters:");
+            Debug.Log($"☁️ mOUND: - zipPath: {zipPath}");
+            Debug.Log($"☁️ mOUND: - organizationId: {organizationId}");
+            Debug.Log($"☁️ mOUND: - isPublic: {isPublic}");
+            Debug.Log($"☁️ mOUND: - isUpdate: {isUpdate}");
+            Debug.Log($"☁️ mOUND: - appId: {appId}");
+            Debug.Log($"☁️ mOUND: - changelogText: {changelogText}");
+            Debug.Log($"☁️ mOUND: - authToken length: {authToken?.Length ?? 0}");
+            Debug.Log($"☁️ mOUND: - apiUrl: {apiUrl}");
+            
+            if (string.IsNullOrEmpty(authToken))
+            {
+                Debug.LogError($"❌ mOUND: No auth token available!");
+                EditorUtility.DisplayDialog("Error", "No authentication token. Please log in first.", "OK");
+                yield break;
+            }
             
             string fileName = Path.GetFileName(zipPath);
             long fileSize = zipData.Length;
@@ -1493,13 +1509,20 @@ namespace mOUND
             string uniqueFileName = "";
             string storageProvider = "";
             
+            Debug.Log($"☁️ mOUND: Creating UnityWebRequest for signed URL...");
+            
             using (UnityWebRequest signedUrlRequest = new UnityWebRequest(signedUrlEndpoint, "POST"))
             {
+                Debug.Log($"☁️ mOUND: UnityWebRequest created successfully");
+                
                 string requestJson = isUpdate 
                     ? $"{{\"fileName\":\"{fileName}\",\"fileSize\":{fileSize},\"changelog\":\"{changelogText}\"}}"
                     : $"{{\"fileName\":\"{fileName}\",\"fileSize\":{fileSize},\"organizationId\":\"{organizationId}\"}}";
                 
+                Debug.Log($"☁️ mOUND: Request JSON prepared: {requestJson}");
+                
                 byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(requestJson);
+                Debug.Log($"☁️ mOUND: Request body encoded, length: {bodyRaw.Length} bytes");
                 
                 signedUrlRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
                 signedUrlRequest.downloadHandler = new DownloadHandlerBuffer();
@@ -1509,10 +1532,12 @@ namespace mOUND
                 signedUrlRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
                 signedUrlRequest.disposeCertificateHandlerOnDispose = true;
                 
-                Debug.Log($"☁️ mOUND: Requesting signed URL from: {signedUrlEndpoint}");
-                Debug.Log($"☁️ mOUND: Request JSON: {requestJson}");
+                Debug.Log($"☁️ mOUND: All headers set, requesting signed URL from: {signedUrlEndpoint}");
+                Debug.Log($"☁️ mOUND: About to call SendWebRequest...");
                 
                 yield return signedUrlRequest.SendWebRequest();
+                
+                Debug.Log($"☁️ mOUND: SendWebRequest returned, checking result...");
                 
                 if (signedUrlRequest.result == UnityWebRequest.Result.Success)
                 {
@@ -1681,6 +1706,56 @@ namespace mOUND
                     EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
                 }
             }
+        }
+        
+        // Test method for debugging signed URL process
+        private IEnumerator TestSignedUrlProcess()
+        {
+            Debug.Log("🔧 mOUND: === TESTING SIGNED URL PROCESS ===");
+            
+            if (string.IsNullOrEmpty(authToken))
+            {
+                Debug.LogError("❌ mOUND: No auth token for test!");
+                yield break;
+            }
+            
+            if (organizations.Count == 0)
+            {
+                Debug.LogError("❌ mOUND: No organizations loaded for test!");
+                yield break;
+            }
+            
+            string testOrgId = organizations[Math.Max(0, selectedOrgIndex)].id;
+            Debug.Log($"🔧 mOUND: Testing with org: {testOrgId}");
+            
+            // Test signed URL request
+            string testEndpoint = $"{apiUrl}/api/upload/signed-url";
+            string testJson = $"{{\"fileName\":\"test.zip\",\"fileSize\":1000000,\"organizationId\":\"{testOrgId}\"}}";
+            
+            using (UnityWebRequest testRequest = new UnityWebRequest(testEndpoint, "POST"))
+            {
+                byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(testJson);
+                
+                testRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                testRequest.downloadHandler = new DownloadHandlerBuffer();
+                testRequest.SetRequestHeader("Content-Type", "application/json");
+                testRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
+                testRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                testRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                testRequest.disposeCertificateHandlerOnDispose = true;
+                
+                Debug.Log($"🔧 mOUND: Sending test request to: {testEndpoint}");
+                Debug.Log($"🔧 mOUND: Test JSON: {testJson}");
+                
+                yield return testRequest.SendWebRequest();
+                
+                Debug.Log($"🔧 mOUND: Test result: {testRequest.result}");
+                Debug.Log($"🔧 mOUND: Test response code: {testRequest.responseCode}");
+                Debug.Log($"🔧 mOUND: Test response: {testRequest.downloadHandler?.text ?? "None"}");
+                Debug.Log($"🔧 mOUND: Test error: {testRequest.error ?? "None"}");
+            }
+            
+            Debug.Log("🔧 mOUND: === TEST COMPLETE ===");
         }
     }
 }
