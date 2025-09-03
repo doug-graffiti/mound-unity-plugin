@@ -101,50 +101,43 @@ namespace mOUND
             GUILayout.Label("API URL:");
             apiUrl = EditorGUILayout.TextField(apiUrl);
             
-            EditorGUILayout.Space(5);
-            
-            // Method 1: Direct login
-            GUILayout.Label("Method 1: Direct Login", EditorStyles.boldLabel);
-            GUILayout.Label("Username:");
-            username = EditorGUILayout.TextField(username);
-            
-            GUILayout.Label("Password:");
-            password = EditorGUILayout.PasswordField(password);
-            
-            if (GUILayout.Button("Login"))
-            {
-                StartCoroutine(LoginCoroutine());
-            }
-            
             EditorGUILayout.Space(10);
             
-            // Method 2: Browser login (fallback)
-            GUILayout.Label("Method 2: Browser Login (if direct login fails)", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("If direct login fails due to network restrictions, use browser login:", MessageType.Info);
+            // Simplified browser-based login for Unity 6
+            EditorGUILayout.HelpBox("Unity 6 has network restrictions. Please use browser login:", MessageType.Info);
             
-            if (GUILayout.Button("Open Browser Login"))
+            if (GUILayout.Button("1. Open mOUND Platform Login", GUILayout.Height(30)))
             {
-                string loginUrl = apiUrl + "/login?unity-plugin=true";
+                string loginUrl = apiUrl + "/login";
                 Application.OpenURL(loginUrl);
-                EditorUtility.DisplayDialog("Browser Login", 
+                EditorUtility.DisplayDialog("Browser Login Instructions", 
                     "1. Login in the browser that just opened\n" +
-                    "2. Copy your token from the profile page\n" +
-                    "3. Paste it in the 'Manual Token' field below", "OK");
+                    "2. Go to your Profile page\n" +
+                    "3. Copy the API Token\n" +
+                    "4. Paste it in the field below\n" +
+                    "5. Click 'Validate Token'", "OK");
             }
             
             EditorGUILayout.Space(5);
-            GUILayout.Label("Manual Token (from browser):");
-            string manualToken = EditorGUILayout.TextField(authToken);
             
-            if (manualToken != authToken && !string.IsNullOrEmpty(manualToken))
+            GUILayout.Label("2. Paste API Token from Profile Page:");
+            string manualToken = EditorGUILayout.TextField(authToken, GUILayout.Height(20));
+            
+            if (manualToken != authToken)
             {
                 authToken = manualToken;
+            }
+            
+            EditorGUILayout.Space(5);
+            
+            if (!string.IsNullOrEmpty(authToken) && GUILayout.Button("3. Validate Token", GUILayout.Height(30)))
+            {
                 StartCoroutine(ValidateToken());
             }
             
-            if (!string.IsNullOrEmpty(authToken) && GUILayout.Button("Validate Token"))
+            if (GUILayout.Button("Need Help? Open Profile Page", GUILayout.Height(25)))
             {
-                StartCoroutine(ValidateToken());
+                Application.OpenURL(apiUrl + "/profile");
             }
         }
         

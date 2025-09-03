@@ -38,9 +38,11 @@
 ### Usage
 
 1. **Access Plugin**: `mOUND > Build and Upload` in Unity menu
-2. **Login**: Enter your mOUND Platform username and password  
-3. **Configure**: Set app name, description, organization, and visibility
-4. **Deploy**: Click "Build WebGL and Upload" ✨
+2. **Browser Login**: Click "Open mOUND Platform Login" and login in browser
+3. **Get Token**: Copy API token from your Profile page  
+4. **Authenticate**: Paste token in Unity plugin and click "Validate Token"
+5. **Configure**: Set app name, description, organization, and visibility
+6. **Deploy**: Click "Build WebGL and Upload" ✨
 
 ![Plugin Interface](https://via.placeholder.com/600x400/10B981/FFFFFF?text=Plugin+Interface+Screenshot)
 
