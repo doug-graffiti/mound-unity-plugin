@@ -1502,6 +1502,7 @@ namespace mOUND
                         uniqueFileName = jsonResponse.fileName;
                         
                         Debug.Log($"☁️ mOUND: Got signed URL for file: {uniqueFileName}");
+                        Debug.Log($"☁️ mOUND: Storage provider: {jsonResponse.provider}");
                     }
                     catch (System.Exception e)
                     {
@@ -1521,16 +1522,35 @@ namespace mOUND
                 }
             }
             
-            // Step 2: Upload directly to Azure Blob Storage using signed URL
+            // Step 2: Upload directly to cloud storage using signed URL
             using (UnityWebRequest uploadRequest = UnityWebRequest.Put(signedUrl, zipData))
             {
-                uploadRequest.SetRequestHeader("x-ms-blob-type", "BlockBlob");
-                uploadRequest.SetRequestHeader("Content-Type", "application/zip");
+                // Set provider-specific headers
+                var jsonResponse = JsonUtility.FromJson<SignedUrlResponse>(signedUrlRequest.downloadHandler.text);
+                string provider = jsonResponse.provider;
+                
+                switch (provider)
+                {
+                    case "azure-blob":
+                        uploadRequest.SetRequestHeader("x-ms-blob-type", "BlockBlob");
+                        uploadRequest.SetRequestHeader("Content-Type", "application/zip");
+                        break;
+                    case "aws-s3":
+                        uploadRequest.SetRequestHeader("Content-Type", "application/zip");
+                        break;
+                    case "google-cloud":
+                        uploadRequest.SetRequestHeader("Content-Type", "application/zip");
+                        break;
+                    default:
+                        uploadRequest.SetRequestHeader("Content-Type", "application/zip");
+                        break;
+                }
+                
                 uploadRequest.timeout = 600; // 10 minute timeout for large uploads
                 uploadRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
                 uploadRequest.disposeCertificateHandlerOnDispose = true;
                 
-                Debug.Log($"☁️ mOUND: Uploading {zipData.Length} bytes to Azure Blob Storage...");
+                Debug.Log($"☁️ mOUND: Uploading {zipData.Length} bytes to {provider} storage...");
                 
                 yield return uploadRequest.SendWebRequest();
                 
@@ -1539,19 +1559,19 @@ namespace mOUND
                     yield return null;
                 }
                 
-                Debug.Log($"☁️ mOUND: Azure upload result: {uploadRequest.result}");
-                Debug.Log($"☁️ mOUND: Azure response code: {uploadRequest.responseCode}");
+                Debug.Log($"☁️ mOUND: {provider} upload result: {uploadRequest.result}");
+                Debug.Log($"☁️ mOUND: {provider} response code: {uploadRequest.responseCode}");
                 
                 if (uploadRequest.result != UnityWebRequest.Result.Success)
                 {
-                    string errorMsg = $"Azure upload failed:\nResult: {uploadRequest.result}\nResponse Code: {uploadRequest.responseCode}\nError: {uploadRequest.error ?? "None"}";
+                    string errorMsg = $"{provider} upload failed:\nResult: {uploadRequest.result}\nResponse Code: {uploadRequest.responseCode}\nError: {uploadRequest.error ?? "None"}";
                     Debug.LogError($"❌ mOUND: {errorMsg}");
                     EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
                     EditorUtility.ClearProgressBar();
                     yield break;
                 }
                 
-                Debug.Log($"✅ mOUND: File uploaded to Azure successfully!");
+                Debug.Log($"✅ mOUND: File uploaded to {provider} successfully!");
             }
             
             // Step 3: Notify server that upload is complete
@@ -1619,4 +1639,5 @@ public class SignedUrlResponse
     public string fileName;
     public string expiresAt;
     public string appId;
+    public string provider;
 }
