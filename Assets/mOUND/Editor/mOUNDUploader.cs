@@ -1188,7 +1188,14 @@ namespace mOUND
                 
                 yield return request.SendWebRequest();
                 
+                // Ensure request is fully completed
+                while (!request.isDone)
+                {
+                    yield return null;
+                }
+                
                 Debug.Log($"📤 mOUND: === UPLOAD RESPONSE ===");
+                Debug.Log($"📤 mOUND: Request fully completed, isDone: {request.isDone}");
                 Debug.Log($"📤 mOUND: Response Code: {request.responseCode}");
                 Debug.Log($"📤 mOUND: Result: {request.result}");
                 Debug.Log($"📤 mOUND: Error: {request.error ?? "None"}");
@@ -1253,7 +1260,15 @@ namespace mOUND
                 
                 yield return request.SendWebRequest();
                 
+                // Ensure request is fully completed
+                while (!request.isDone)
+                {
+                    yield return null;
+                }
+                
                 EditorUtility.ClearProgressBar();
+                
+                Debug.Log($"📤 mOUND: Request fully completed, isDone: {request.isDone}");
                 
                 if (request.result == UnityWebRequest.Result.Success)
                 {
