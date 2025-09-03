@@ -1237,8 +1237,20 @@ namespace mOUND
             // Use signed URL upload for files > 30MB (Cloud Run limit is 32MB)
             if (zipData.Length > 30 * 1024 * 1024)
             {
-                Debug.Log($"📤 mOUND: File > 30MB, using signed URL upload to bypass Cloud Run limit");
-                yield return UploadViaSignedUrl(zipPath, zipData, organizationId, isPublic, false, "", "");
+                Debug.Log($"📤 mOUND: File > 30MB ({fileSizeMB}MB), using signed URL upload to bypass Cloud Run limit");
+                
+                // Add option to force direct upload for testing
+                if (EditorUtility.DisplayDialog("Large File Upload", 
+                    $"File size: {fileSizeMB}MB\n\nChoose upload method:", 
+                    "Signed URL (Recommended)", "Direct Upload (May Fail)"))
+                {
+                    yield return UploadViaSignedUrl(zipPath, zipData, organizationId, isPublic, false, "", "");
+                }
+                else
+                {
+                    Debug.Log($"📤 mOUND: User chose direct upload despite large file size");
+                    // Continue with direct upload below
+                }
                 yield break;
             }
             
@@ -1352,8 +1364,20 @@ namespace mOUND
             // Use signed URL upload for files > 30MB (Cloud Run limit is 32MB)
             if (zipData.Length > 30 * 1024 * 1024)
             {
-                Debug.Log($"📤 mOUND: Update file > 30MB, using signed URL upload to bypass Cloud Run limit");
-                yield return UploadViaSignedUrl(zipPath, zipData, "", isPublic, true, appId, changelogText);
+                Debug.Log($"📤 mOUND: Update file > 30MB ({fileSizeMB}MB), using signed URL upload to bypass Cloud Run limit");
+                
+                // Add option to force direct upload for testing
+                if (EditorUtility.DisplayDialog("Large File Update", 
+                    $"File size: {fileSizeMB}MB\n\nChoose update method:", 
+                    "Signed URL (Recommended)", "Direct Upload (May Fail)"))
+                {
+                    yield return UploadViaSignedUrl(zipPath, zipData, "", isPublic, true, appId, changelogText);
+                }
+                else
+                {
+                    Debug.Log($"📤 mOUND: User chose direct update despite large file size");
+                    // Continue with direct upload below
+                }
                 yield break;
             }
             
@@ -1553,13 +1577,44 @@ namespace mOUND
                 
                 yield return uploadRequest.SendWebRequest();
                 
+                // Add progress tracking and timeout handling
+                float startTime = Time.realtimeSinceStartup;
+                float lastProgressTime = startTime;
+                float lastProgress = 0f;
+                
                 while (!uploadRequest.isDone)
                 {
+                    float currentTime = Time.realtimeSinceStartup;
+                    float currentProgress = uploadRequest.uploadProgress;
+                    
+                    // Log progress every 10 seconds or when progress changes significantly
+                    if (currentTime - lastProgressTime > 10f || (currentProgress - lastProgress) > 0.1f)
+                    {
+                        Debug.Log($"☁️ mOUND: Upload progress: {(currentProgress * 100):F1}% ({currentTime - startTime:F1}s elapsed)");
+                        lastProgressTime = currentTime;
+                        lastProgress = currentProgress;
+                        
+                        // Update progress bar
+                        EditorUtility.DisplayProgressBar("Uploading to Cloud", 
+                            $"Uploading to {storageProvider}: {(currentProgress * 100):F1}%", 
+                            currentProgress);
+                    }
+                    
+                    // Timeout after 15 minutes for very large files
+                    if (currentTime - startTime > 900f) // 15 minutes
+                    {
+                        Debug.LogError($"❌ mOUND: Upload timeout after {currentTime - startTime:F1} seconds");
+                        EditorUtility.ClearProgressBar();
+                        EditorUtility.DisplayDialog("Upload Timeout", "Upload timed out after 15 minutes. Try optimizing your build or check your internet connection.", "OK");
+                        yield break;
+                    }
+                    
                     yield return null;
                 }
                 
                 Debug.Log($"☁️ mOUND: {storageProvider} upload result: {uploadRequest.result}");
                 Debug.Log($"☁️ mOUND: {storageProvider} response code: {uploadRequest.responseCode}");
+                Debug.Log($"☁️ mOUND: Upload completed in {Time.realtimeSinceStartup - startTime:F1} seconds");
                 
                 if (uploadRequest.result != UnityWebRequest.Result.Success)
                 {
