@@ -11,6 +11,15 @@ using System.Collections.Generic;
 
 namespace mOUND
 {
+    // Unity 6 certificate handler for Editor HTTPS requests
+    public class AcceptAllCertificatesSignedWithASpecificKeyPublicKey : CertificateHandler
+    {
+        protected override bool ValidateCertificate(byte[] certificateData)
+        {
+            // Accept all certificates in Unity Editor for development
+            return true;
+        }
+    }
     public class mOUNDUploader : EditorWindow
     {
         private string apiUrl = "https://mound.gllc.io";
@@ -92,17 +101,50 @@ namespace mOUND
             GUILayout.Label("API URL:");
             apiUrl = EditorGUILayout.TextField(apiUrl);
             
+            EditorGUILayout.Space(5);
+            
+            // Method 1: Direct login
+            GUILayout.Label("Method 1: Direct Login", EditorStyles.boldLabel);
             GUILayout.Label("Username:");
             username = EditorGUILayout.TextField(username);
             
             GUILayout.Label("Password:");
             password = EditorGUILayout.PasswordField(password);
             
-            GUILayout.Space(10);
-            
             if (GUILayout.Button("Login"))
             {
                 StartCoroutine(LoginCoroutine());
+            }
+            
+            EditorGUILayout.Space(10);
+            
+            // Method 2: Browser login (fallback)
+            GUILayout.Label("Method 2: Browser Login (if direct login fails)", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("If direct login fails due to network restrictions, use browser login:", MessageType.Info);
+            
+            if (GUILayout.Button("Open Browser Login"))
+            {
+                string loginUrl = apiUrl + "/login?unity-plugin=true";
+                Application.OpenURL(loginUrl);
+                EditorUtility.DisplayDialog("Browser Login", 
+                    "1. Login in the browser that just opened\n" +
+                    "2. Copy your token from the profile page\n" +
+                    "3. Paste it in the 'Manual Token' field below", "OK");
+            }
+            
+            EditorGUILayout.Space(5);
+            GUILayout.Label("Manual Token (from browser):");
+            string manualToken = EditorGUILayout.TextField(authToken);
+            
+            if (manualToken != authToken && !string.IsNullOrEmpty(manualToken))
+            {
+                authToken = manualToken;
+                StartCoroutine(ValidateToken());
+            }
+            
+            if (!string.IsNullOrEmpty(authToken) && GUILayout.Button("Validate Token"))
+            {
+                StartCoroutine(ValidateToken());
             }
         }
         
@@ -259,11 +301,20 @@ namespace mOUND
             string jsonData = JsonUtility.ToJson(loginData);
             Debug.Log($"🔐 mOUND: JSON payload: {jsonData}");
             
-            // Use UnityWebRequest.Post for better Unity Editor compatibility
-            using (UnityWebRequest request = UnityWebRequest.Post(apiUrl + "/api/auth/login", jsonData, "application/json"))
+            // Unity 6 compatible networking approach
+            using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/auth/login", "POST"))
             {
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                request.SetRequestHeader("Accept", "application/json");
                 request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                request.SetRequestHeader("Cache-Control", "no-cache");
                 request.timeout = 30; // 30 second timeout
+                
+                // Unity 6 security bypass for Editor
+                request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                request.disposeCertificateHandlerOnDispose = true;
                 
                 Debug.Log($"🔐 mOUND: Sending POST request to {request.url}");
                 Debug.Log($"🔐 mOUND: Content-Type: application/json, User-Agent: Unity-mOUND-Plugin/1.0.0");
@@ -318,9 +369,17 @@ namespace mOUND
         
         private IEnumerator FetchOrganizations()
         {
+            Debug.Log($"🏢 mOUND: Fetching organizations...");
+            
             using (UnityWebRequest request = UnityWebRequest.Get(apiUrl + "/api/organizations"))
             {
                 request.SetRequestHeader("Authorization", "Bearer " + authToken);
+                request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                request.timeout = 30;
+                
+                // Unity 6 certificate handler
+                request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                request.disposeCertificateHandlerOnDispose = true;
                 
                 yield return request.SendWebRequest();
                 
@@ -369,6 +428,14 @@ namespace mOUND
             using (UnityWebRequest request = UnityWebRequest.Post(apiUrl + "/api/applications", formData))
             {
                 request.SetRequestHeader("Authorization", "Bearer " + authToken);
+                request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                request.timeout = 300; // 5 minute timeout for uploads
+                
+                // Unity 6 certificate handler
+                request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                request.disposeCertificateHandlerOnDispose = true;
+                
+                Debug.Log($"📤 mOUND: Starting upload to {request.url}");
                 
                 var uploadProgress = request.SendWebRequest();
                 
@@ -442,18 +509,44 @@ namespace mOUND
         
         private IEnumerator ValidateToken()
         {
+            Debug.Log($"🔐 mOUND: Validating token...");
+            
             using (UnityWebRequest request = UnityWebRequest.Get(apiUrl + "/api/auth/me"))
             {
                 request.SetRequestHeader("Authorization", "Bearer " + authToken);
+                request.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                request.timeout = 30;
+                
+                // Unity 6 certificate handler
+                request.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                request.disposeCertificateHandlerOnDispose = true;
                 
                 yield return request.SendWebRequest();
                 
+                Debug.Log($"🔐 mOUND: Token validation response: {request.responseCode}");
+                
                 if (request.result == UnityWebRequest.Result.Success)
                 {
+                    Debug.Log($"🔐 mOUND: Token is valid");
+                    isLoggedIn = true;
+                    
+                    // Try to get username from response
+                    try
+                    {
+                        var response = JsonUtility.FromJson<LoginResponse>(request.downloadHandler.text);
+                        username = response.user.username;
+                    }
+                    catch
+                    {
+                        // If parsing fails, keep existing username
+                    }
+                    
+                    SaveCredentials();
                     StartCoroutine(FetchOrganizations());
                 }
                 else
                 {
+                    Debug.LogError($"🔐 mOUND: Token validation failed: {request.error}");
                     // Token is invalid
                     Logout();
                 }

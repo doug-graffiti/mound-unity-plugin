@@ -1,6 +1,6 @@
 # mOUND Unity Plugin 🔧
 
-[![Unity Version](https://img.shields.io/badge/Unity-2021.3%2B-blue.svg)](https://unity3d.com/get-unity/download)
+[![Unity Version](https://img.shields.io/badge/Unity-2021.3%2B%20%7C%206.0%2B-blue.svg)](https://unity3d.com/get-unity/download)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-WebGL-orange.svg)](https://docs.unity3d.com/Manual/webgl.html)
 
@@ -46,7 +46,7 @@
 
 ## 📋 Requirements
 
-- **Unity**: 2021.3 LTS or newer
+- **Unity**: 2021.3 LTS or newer (including Unity 6.0+)
 - **Platform**: WebGL build support installed
 - **Account**: Active mOUND Platform account
 - **Network**: Internet connection for uploads
