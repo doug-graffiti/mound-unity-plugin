@@ -24,6 +24,12 @@
 
 ### 4. **Unity 6 Specific Settings**
 
+#### **API Compatibility Level (CRITICAL)**
+- Go to `Edit > Project Settings > Player > Configuration`
+- Set **API Compatibility Level** to **`.NET Standard 2.1`** 
+- **NOT** `.NET Framework` (causes networking issues)
+- **NOT** `.NET 6.0` (may cause compatibility issues with WebGL)
+
 #### **Network Settings (Important for Unity 6)**
 - Go to `Edit > Project Settings > XR Plug-in Management > Initialize XR on Startup` → **Disable** (if present)
 - Go to `Edit > Project Settings > Player > WebGL Settings > Publishing Settings`
@@ -32,6 +38,11 @@
 #### **Security Settings**
 - The plugin handles certificate validation automatically
 - No additional security configuration needed
+
+#### **Scripting Backend**
+- Go to `Edit > Project Settings > Player > Configuration`
+- **Scripting Backend**: IL2CPP (recommended for WebGL)
+- **Api Compatibility Level**: .NET Standard 2.1
 
 ### 5. **Optional Optimizations**
 
@@ -89,6 +100,8 @@ Before using the plugin:
 - [ ] WebGL platform support installed
 - [ ] Project switched to WebGL platform  
 - [ ] At least one scene added to build
+- [ ] **API Compatibility Level** set to **.NET Standard 2.1**
+- [ ] **Scripting Backend** set to **IL2CPP**
 - [ ] Plugin appears in `mOUND` menu
 - [ ] No compilation errors in Console
 - [ ] Internet connection available
