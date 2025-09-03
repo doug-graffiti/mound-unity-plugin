@@ -301,6 +301,8 @@ namespace mOUND
             string jsonData = JsonUtility.ToJson(loginData);
             Debug.Log($"🔐 mOUND: JSON payload: {jsonData}");
             
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
+            
             // Unity 6 compatible networking approach
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/auth/login", "POST"))
             {
