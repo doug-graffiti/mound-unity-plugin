@@ -45,6 +45,7 @@ namespace mOUND
         private List<ApplicationData> existingApps = new List<ApplicationData>();
         private int selectedAppIndex = -1; // -1 means "Create New"
         private bool isUpdateMode = false;
+        private string changelogText = "";
         
         [System.Serializable]
         public class LoginResponse
@@ -272,7 +273,29 @@ namespace mOUND
             GUILayout.Space(10);
             
             // Update mode toggle
-            isUpdateMode = EditorGUILayout.Toggle("Update Existing App", isUpdateMode);
+            bool newUpdateMode = EditorGUILayout.Toggle("Update Existing App", isUpdateMode);
+            if (newUpdateMode != isUpdateMode)
+            {
+                isUpdateMode = newUpdateMode;
+                if (isUpdateMode)
+                {
+                    // When switching to update mode, fetch apps if we have an org selected
+                    if (!string.IsNullOrEmpty(organizationId) && existingApps.Count == 0)
+                    {
+                        Debug.Log($"🔄 mOUND: Switching to update mode, fetching apps for org: {organizationId}");
+                        _ = FetchApplicationsAsync(organizationId);
+                    }
+                    selectedAppIndex = -1; // Reset selection
+                }
+                else
+                {
+                    // When switching to create mode, clear app details
+                    appName = "";
+                    appDescription = "";
+                    changelogText = "";
+                    selectedAppIndex = -1;
+                }
+            }
             
             if (isUpdateMode && existingApps.Count > 0)
             {
@@ -281,7 +304,7 @@ namespace mOUND
                 appOptions[0] = "Create New App";
                 for (int i = 0; i < existingApps.Count; i++)
                 {
-                    appOptions[i + 1] = $"{existingApps[i].name} (v{existingApps[i].version})";
+                    appOptions[i + 1] = $"{existingApps[i].name} (v{existingApps[i].version ?? "1.0.0"})";
                 }
                 
                 int newAppIndex = EditorGUILayout.Popup(selectedAppIndex + 1, appOptions) - 1;
@@ -290,16 +313,45 @@ namespace mOUND
                     selectedAppIndex = newAppIndex;
                     if (selectedAppIndex >= 0)
                     {
-                        // Pre-fill with existing app data
+                        // Auto-populate with existing app data
                         var selectedApp = existingApps[selectedAppIndex];
                         appName = selectedApp.name;
                         appDescription = selectedApp.description;
+                        Debug.Log($"🔄 mOUND: Auto-populated app details for update: {selectedApp.name}");
+                    }
+                    else
+                    {
+                        // Reset to empty for new app
+                        appName = "";
+                        appDescription = "";
+                        changelogText = "";
+                    }
+                }
+                
+                // Show changelog field for updates
+                if (selectedAppIndex >= 0)
+                {
+                    GUILayout.Space(10);
+                    EditorGUILayout.HelpBox("Changelog is required for app updates", MessageType.Info);
+                    GUILayout.Label("What's New in This Version: *");
+                    changelogText = EditorGUILayout.TextArea(changelogText, GUILayout.Height(80));
+                    
+                    if (string.IsNullOrEmpty(changelogText.Trim()))
+                    {
+                        EditorGUILayout.HelpBox("Please describe what's new in this update", MessageType.Warning);
                     }
                 }
             }
             else if (isUpdateMode)
             {
                 GUILayout.Label("No existing apps found for this organization");
+                if (GUILayout.Button("Refresh Apps"))
+                {
+                    if (!string.IsNullOrEmpty(organizationId))
+                    {
+                        _ = FetchApplicationsAsync(organizationId);
+                    }
+                }
             }
             
             isPublic = EditorGUILayout.Toggle("Public Application", isPublic);
@@ -324,8 +376,14 @@ namespace mOUND
                     return;
                 }
                 
+                // Validate changelog for updates
                 if (isUpdateMode && selectedAppIndex >= 0)
                 {
+                    if (string.IsNullOrEmpty(changelogText.Trim()))
+                    {
+                        EditorUtility.DisplayDialog("Error", "Please enter a changelog describing what's new in this update.", "OK");
+                        return;
+                    }
                     BuildAndUpdate();
                 }
                 else
@@ -1180,6 +1238,7 @@ namespace mOUND
                 formData.Add(new MultipartFormDataSection("name", appName));
                 formData.Add(new MultipartFormDataSection("description", appDescription));
                 formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
+                formData.Add(new MultipartFormDataSection("changelog", changelogText));
                 formData.Add(new MultipartFormFileSection("file", zipData, appName + "_update.zip", "application/zip"));
                 
                 request.uploadHandler = new UploadHandlerRaw(UnityWebRequest.SerializeFormSections(formData, UnityWebRequest.GenerateBoundary()));
