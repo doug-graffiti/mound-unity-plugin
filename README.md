@@ -64,6 +64,7 @@ Access advanced settings via `mOUND > Settings`:
 ## 📚 Documentation
 
 - **[Quick Setup Guide](SETUP.md)** - Get started in 2 minutes
+- **[Unity Configuration](UNITY-SETUP.md)** - Required Unity settings and troubleshooting
 - **[Developer Guide](DEVELOPER.md)** - Extend and customize the plugin
 - **[Changelog](CHANGELOG.md)** - Version history and updates
 
