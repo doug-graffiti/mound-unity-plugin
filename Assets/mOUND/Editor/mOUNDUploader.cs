@@ -246,6 +246,10 @@ namespace mOUND
         
         private IEnumerator LoginCoroutine()
         {
+            Debug.Log($"🔐 mOUND: Attempting login to {apiUrl}/api/auth/login");
+            Debug.Log($"🔐 mOUND: Username: {username}");
+            Debug.Log($"🔐 mOUND: Password length: {password.Length}");
+            
             var loginData = new
             {
                 username = this.username,
@@ -253,6 +257,8 @@ namespace mOUND
             };
             
             string jsonData = JsonUtility.ToJson(loginData);
+            Debug.Log($"🔐 mOUND: JSON payload: {jsonData}");
+            
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
             
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/auth/login", "POST"))
@@ -261,7 +267,13 @@ namespace mOUND
                 request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
                 
+                Debug.Log($"🔐 mOUND: Sending request to {request.url}");
+                
                 yield return request.SendWebRequest();
+                
+                Debug.Log($"🔐 mOUND: Response code: {request.responseCode}");
+                Debug.Log($"🔐 mOUND: Response text: {request.downloadHandler.text}");
+                Debug.Log($"🔐 mOUND: Request result: {request.result}");
                 
                 if (request.result == UnityWebRequest.Result.Success)
                 {
@@ -272,6 +284,8 @@ namespace mOUND
                         username = response.user.username;
                         isLoggedIn = true;
                         
+                        Debug.Log($"🔐 mOUND: Login successful, token received");
+                        
                         SaveCredentials();
                         StartCoroutine(FetchOrganizations());
                         
@@ -279,12 +293,15 @@ namespace mOUND
                     }
                     catch (System.Exception e)
                     {
+                        Debug.LogError($"🔐 mOUND: JSON parsing error: {e.Message}");
                         EditorUtility.DisplayDialog("Login Failed", "Invalid response from server: " + e.Message, "OK");
                     }
                 }
                 else
                 {
-                    EditorUtility.DisplayDialog("Login Failed", "Login failed: " + request.error, "OK");
+                    string errorMsg = $"HTTP {request.responseCode}: {request.downloadHandler.text}";
+                    Debug.LogError($"🔐 mOUND: Login failed - {errorMsg}");
+                    EditorUtility.DisplayDialog("Login Failed", "Login failed: " + errorMsg, "OK");
                 }
             }
         }
