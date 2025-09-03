@@ -22,7 +22,6 @@ namespace mOUND
         private bool isPublic = false;
         private string authToken = "";
         private bool isLoggedIn = false;
-        private string username = "";
         private Vector2 scrollPosition;
         
         private List<Organization> organizations = new List<Organization>();
