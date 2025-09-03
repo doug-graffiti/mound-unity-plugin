@@ -19,7 +19,7 @@
 
 ### 3. Use the Plugin
 1. Open the plugin: `mOUND > Build and Upload`
-2. Login with your mOUND Platform credentials
+2. Login with your mOUND Platform username and password
 3. Fill in your app details:
    - **Name**: Your application name
    - **Description**: Brief description of your app

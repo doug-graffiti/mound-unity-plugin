@@ -1,0 +1,20 @@
+# Commands to run after creating GitHub repository
+
+# 1. Add the GitHub remote (replace YOUR_USERNAME with your GitHub username)
+git remote add origin https://github.com/YOUR_USERNAME/mound-unity-plugin.git
+
+# 2. Set the main branch name
+git branch -M main
+
+# 3. Push to GitHub
+git push -u origin main
+
+# 4. Create a release with the distribution package
+# Go to: https://github.com/YOUR_USERNAME/mound-unity-plugin/releases/new
+# - Tag version: v1.0.0
+# - Release title: mOUND Unity Plugin v1.0.0
+# - Description: Initial release with one-click WebGL build and upload
+# - Attach file: dist/mOUND-Platform-Uploader-v1.0.0.zip
+
+# Alternative: Use GitHub CLI if available
+# gh release create v1.0.0 dist/mOUND-Platform-Uploader-v1.0.0.zip --title "mOUND Unity Plugin v1.0.0" --notes "Initial release with one-click WebGL build and upload functionality"

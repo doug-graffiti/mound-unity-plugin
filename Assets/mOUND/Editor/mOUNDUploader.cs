@@ -14,7 +14,7 @@ namespace mOUND
     public class mOUNDUploader : EditorWindow
     {
         private string apiUrl = "https://mound.gllc.io";
-        private string email = "";
+        private string username = "";
         private string password = "";
         private string appName = "";
         private string appDescription = "";
@@ -93,8 +93,8 @@ namespace mOUND
             GUILayout.Label("API URL:");
             apiUrl = EditorGUILayout.TextField(apiUrl);
             
-            GUILayout.Label("Email:");
-            email = EditorGUILayout.TextField(email);
+            GUILayout.Label("Username:");
+            username = EditorGUILayout.TextField(username);
             
             GUILayout.Label("Password:");
             password = EditorGUILayout.PasswordField(password);
@@ -249,7 +249,7 @@ namespace mOUND
         {
             var loginData = new
             {
-                email = this.email,
+                username = this.username,
                 password = this.password
             };
             
@@ -396,18 +396,16 @@ namespace mOUND
         private void SaveCredentials()
         {
             EditorPrefs.SetString("mOUND_ApiUrl", apiUrl);
-            EditorPrefs.SetString("mOUND_Email", email);
-            EditorPrefs.SetString("mOUND_AuthToken", authToken);
             EditorPrefs.SetString("mOUND_Username", username);
+            EditorPrefs.SetString("mOUND_AuthToken", authToken);
             EditorPrefs.SetBool("mOUND_IsLoggedIn", isLoggedIn);
         }
         
         private void LoadCredentials()
         {
             apiUrl = EditorPrefs.GetString("mOUND_ApiUrl", "https://mound.gllc.io");
-            email = EditorPrefs.GetString("mOUND_Email", "");
-            authToken = EditorPrefs.GetString("mOUND_AuthToken", "");
             username = EditorPrefs.GetString("mOUND_Username", "");
+            authToken = EditorPrefs.GetString("mOUND_AuthToken", "");
             isLoggedIn = EditorPrefs.GetBool("mOUND_IsLoggedIn", false);
             
             if (isLoggedIn && !string.IsNullOrEmpty(authToken))
@@ -439,14 +437,12 @@ namespace mOUND
         private void Logout()
         {
             authToken = "";
-            username = "";
             isLoggedIn = false;
             organizations.Clear();
             selectedOrgIndex = 0;
             organizationId = "";
             
             EditorPrefs.DeleteKey("mOUND_AuthToken");
-            EditorPrefs.DeleteKey("mOUND_Username");
             EditorPrefs.SetBool("mOUND_IsLoggedIn", false);
         }
         
