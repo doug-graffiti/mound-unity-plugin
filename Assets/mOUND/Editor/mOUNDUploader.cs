@@ -625,7 +625,7 @@ namespace mOUND
                 
                 if (response.IsSuccessStatusCode)
                 {
-                    var orgResponse = JsonUtility.FromJson<OrganizationResponse>(responseText);
+                    var orgResponse = JsonUtility.FromJson<OrganizationsResponse>(responseText);
                     organizations.Clear();
                     organizations.AddRange(orgResponse.organizations);
                     Debug.Log($"🔧 mOUND: Loaded {organizations.Count} organizations");
