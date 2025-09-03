@@ -31,6 +31,7 @@ namespace mOUND
         private bool isPublic = false;
         private string authToken = "";
         private bool isLoggedIn = false;
+        private bool isValidatingToken = false;
         private Vector2 scrollPosition;
         
         private List<Organization> organizations = new List<Organization>();
@@ -130,10 +131,12 @@ namespace mOUND
             
             EditorGUILayout.Space(5);
             
-            if (!string.IsNullOrEmpty(authToken) && GUILayout.Button("3. Validate Token", GUILayout.Height(30)))
+            EditorGUI.BeginDisabledGroup(isValidatingToken);
+            if (!string.IsNullOrEmpty(authToken) && GUILayout.Button(isValidatingToken ? "Validating..." : "3. Validate Token", GUILayout.Height(30)))
             {
                 StartCoroutine(ValidateToken());
             }
+            EditorGUI.EndDisabledGroup();
             
             if (GUILayout.Button("Need Help? Open Profile Page", GUILayout.Height(25)))
             {
@@ -504,6 +507,7 @@ namespace mOUND
         
         private IEnumerator ValidateToken()
         {
+            isValidatingToken = true;
             Debug.Log($"🔐 mOUND: Validating token...");
             Debug.Log($"🔐 mOUND: Token length: {authToken.Length}");
             Debug.Log($"🔐 mOUND: Token preview: {authToken.Substring(0, Math.Min(20, authToken.Length))}...");
@@ -532,6 +536,7 @@ namespace mOUND
                 {
                     Debug.Log($"🔐 mOUND: Token is valid");
                     isLoggedIn = true;
+                    isValidatingToken = false;
                     
                     // Try to get username from response
                     try
@@ -568,6 +573,7 @@ namespace mOUND
                     
                     Debug.LogError($"🔐 mOUND: Token validation failed: {errorMsg}");
                     EditorUtility.DisplayDialog("Token Validation Failed", errorMsg, "OK");
+                    isValidatingToken = false;
                     
                     // Don't auto-logout on network errors, only on auth errors
                     if (request.responseCode == 401 || request.responseCode == 403)
