@@ -120,6 +120,40 @@ namespace mOUND
         private void OnEnable()
         {
             LoadCredentials();
+            
+            // If we have a saved token, validate it and fetch organizations
+            if (isLoggedIn && !string.IsNullOrEmpty(authToken))
+            {
+                Debug.Log($"🔄 mOUND: Found saved token, validating and fetching organizations...");
+                _ = ValidateTokenAndFetchDataAsync();
+            }
+        }
+        
+        private async Task ValidateTokenAndFetchDataAsync()
+        {
+            try
+            {
+                // Validate the saved token first
+                await ValidateTokenAsync();
+                
+                // If validation was successful and we don't have organizations, fetch them
+                if (isLoggedIn && organizations.Count == 0)
+                {
+                    Debug.Log($"🔄 mOUND: Token valid, fetching organizations...");
+                    await FetchOrganizationsAsync();
+                    
+                    // If we have an organization selected, fetch its apps too
+                    if (!string.IsNullOrEmpty(organizationId))
+                    {
+                        Debug.Log($"🔄 mOUND: Fetching apps for saved organization: {organizationId}");
+                        await FetchApplicationsAsync(organizationId);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"❌ mOUND: Error during startup validation: {e.Message}");
+            }
         }
         
         private void OnGUI()
@@ -266,8 +300,16 @@ namespace mOUND
                 GUILayout.Label("No organizations available");
                 if (GUILayout.Button("Refresh Organizations"))
                 {
+                    Debug.Log($"🔄 mOUND: Manual organization refresh requested");
                     _ = FetchOrganizationsAsync(); // Use async method
                 }
+            }
+            
+            // Always show refresh button for debugging
+            if (organizations.Count > 0 && GUILayout.Button("🔄 Refresh Organizations", GUILayout.Height(20)))
+            {
+                Debug.Log($"🔄 mOUND: Manual organization refresh (debug)");
+                _ = FetchOrganizationsAsync();
             }
             
             GUILayout.Space(10);
@@ -588,7 +630,7 @@ namespace mOUND
                         Debug.Log($"🔐 mOUND: Login successful, token received");
                         
                         SaveCredentials();
-                        StartCoroutine(FetchOrganizations());
+                        _ = FetchOrganizationsAsync(); // Use the working async method
                         
                         EditorUtility.DisplayDialog("Success", $"Logged in as {username}", "OK");
                     }
@@ -1100,7 +1142,8 @@ namespace mOUND
                     }
                     
                     SaveCredentials();
-                    StartCoroutine(FetchOrganizations());
+                    EditorUtility.DisplayDialog("Success", "Token validated successfully!\nFetching organizations...", "OK");
+                    _ = FetchOrganizationsAsync(); // Use the working async method
                 }
                 else
                 {
