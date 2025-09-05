@@ -1779,10 +1779,10 @@ namespace mOUND
                                     }
                                     
                                     // Update progress bar with timeout info
-                                    float progress = 0.9f + (elapsed / timeoutSeconds) * 0.1f;
+                                    float appProgress = 0.9f + (elapsed / timeoutSeconds) * 0.1f;
                                     EditorUtility.DisplayProgressBar("Creating Application", 
                                         $"Creating application record... ({elapsed:F1}s elapsed)", 
-                                        Mathf.Min(progress, 0.99f));
+                                        Mathf.Min(appProgress, 0.99f));
                                     
                                     yield return null;
                                 }
