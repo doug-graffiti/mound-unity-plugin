@@ -1708,34 +1708,97 @@ namespace mOUND
                     
                     Debug.Log($"✅ mOUND: Chunk {chunkIndex + 1}/{totalChunks} uploaded successfully");
                     
-                    // If this is the last chunk, the server should have processed the complete file
+                    // If this is the last chunk, create the application record
                     if (chunkIndex == totalChunks - 1)
                     {
-                        Debug.Log($"📦 mOUND: Last chunk uploaded, server should have processed complete file");
+                        Debug.Log($"📦 mOUND: Last chunk uploaded, creating application record");
                         
-                        // Check if the response contains success information
+                        // Check if the chunk upload was successful
                         string responseText = chunkRequest.downloadHandler?.text ?? "";
                         Debug.Log($"📦 mOUND: Final chunk response: {responseText}");
                         
                         if (chunkRequest.responseCode == 200)
                         {
+                            // Now create the application record
+                            Debug.Log($"📦 mOUND: Creating application record via /api/applications/from-chunks");
+                            
+                            using (UnityWebRequest createAppRequest = new UnityWebRequest(apiUrl + "/api/applications/from-chunks", "POST"))
+                            {
+                                // Create form data for application creation
+                                List<IMultipartFormSection> appFormData = new List<IMultipartFormSection>();
+                                
+                                // Double-check all fields are valid before creating form data
+                                string safeAppName = string.IsNullOrEmpty(appName) ? "Untitled App" : appName;
+                                string safeDescription = string.IsNullOrEmpty(appDescription) ? "" : appDescription;
+                                string safeOrgId = string.IsNullOrEmpty(organizationId) ? "" : organizationId;
+                                
+                                Debug.Log($"📦 mOUND: Creating application with:");
+                                Debug.Log($"📦 mOUND: - Name: '{safeAppName}'");
+                                Debug.Log($"📦 mOUND: - Description: '{safeDescription}'");
+                                Debug.Log($"📦 mOUND: - Organization ID: '{safeOrgId}'");
+                                Debug.Log($"📦 mOUND: - File Name: '{fileName}'");
+                                Debug.Log($"📦 mOUND: - File Size: {zipData.Length}");
+                                
+                                appFormData.Add(new MultipartFormDataSection("name", safeAppName));
+                                appFormData.Add(new MultipartFormDataSection("description", safeDescription));
+                                appFormData.Add(new MultipartFormDataSection("organizationId", safeOrgId));
+                                appFormData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
+                                appFormData.Add(new MultipartFormDataSection("fileName", fileName));
+                                appFormData.Add(new MultipartFormDataSection("fileSize", zipData.Length.ToString()));
+                                
+                                byte[] boundary = UnityWebRequest.GenerateBoundary();
+                                byte[] formSections = UnityWebRequest.SerializeFormSections(appFormData, boundary);
+                                
+                                createAppRequest.uploadHandler = new UploadHandlerRaw(formSections);
+                                createAppRequest.downloadHandler = new DownloadHandlerBuffer();
+                                createAppRequest.SetRequestHeader("Content-Type", "multipart/form-data; boundary=" + System.Text.Encoding.UTF8.GetString(boundary));
+                                createAppRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
+                                createAppRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                                createAppRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                                createAppRequest.disposeCertificateHandlerOnDispose = true;
+                                
+                                yield return createAppRequest.SendWebRequest();
+                                
+                                if (createAppRequest.result == UnityWebRequest.Result.Success)
+                                {
+                                    EditorUtility.ClearProgressBar();
+                                    
+                                    Debug.Log($"✅ mOUND: Application created successfully!");
+                                    string appResponse = createAppRequest.downloadHandler?.text ?? "";
+                                    Debug.Log($"📦 mOUND: Application response: {appResponse}");
+                                    
+                                    EditorUtility.DisplayDialog("Success", "Application uploaded and created successfully!", "OK");
+                                    
+                                    // Clean up
+                                    if (File.Exists(zipPath))
+                                    {
+                                        File.Delete(zipPath);
+                                        Debug.Log($"🗑️ mOUND: Cleaned up ZIP file: {zipPath}");
+                                    }
+                                    if (Directory.Exists("Builds/WebGL"))
+                                    {
+                                        Directory.Delete("Builds/WebGL", true);
+                                    }
+                                    
+                                    Debug.Log($"📦 mOUND: === CHUNKED UPLOAD COMPLETE ===");
+                                    yield break;
+                                }
+                                else
+                                {
+                                    string errorMsg = $"Failed to create application:\nResult: {createAppRequest.result}\nResponse Code: {createAppRequest.responseCode}\nError: {createAppRequest.error ?? "None"}\nResponse: {createAppRequest.downloadHandler?.text ?? "None"}";
+                                    Debug.LogError($"❌ mOUND: {errorMsg}");
+                                    EditorUtility.DisplayDialog("Application Creation Failed", errorMsg, "OK");
+                                    EditorUtility.ClearProgressBar();
+                                    yield break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            string errorMsg = $"Failed to upload final chunk:\nResult: {chunkRequest.result}\nResponse Code: {chunkRequest.responseCode}\nError: {chunkRequest.error ?? "None"}";
+                            Debug.LogError($"❌ mOUND: {errorMsg}");
+                            EditorUtility.DisplayDialog("Chunk Upload Failed", errorMsg, "OK");
                             EditorUtility.ClearProgressBar();
-                            
-                            Debug.Log($"✅ mOUND: Application uploaded successfully!");
-                            EditorUtility.DisplayDialog("Success", "Application uploaded successfully!", "OK");
-                            
-                            // Clean up
-                            if (File.Exists(zipPath))
-                            {
-                                File.Delete(zipPath);
-                                Debug.Log($"🗑️ mOUND: Cleaned up ZIP file: {zipPath}");
-                            }
-                            if (Directory.Exists("Builds/WebGL"))
-                            {
-                                Directory.Delete("Builds/WebGL", true);
-                            }
-                            
-                            Debug.Log($"📦 mOUND: === CHUNKED UPLOAD COMPLETE ===");
                             yield break;
                         }
                     }
