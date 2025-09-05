@@ -1241,10 +1241,32 @@ namespace mOUND
             Debug.Log($"📤 mOUND: Is Public: {isPublic}");
             Debug.Log($"📤 mOUND: Auth Token Length: {authToken?.Length ?? 0}");
             
+            // Early validation
             if (!File.Exists(zipPath))
             {
                 Debug.LogError($"❌ mOUND: ZIP file not found: {zipPath}");
                 EditorUtility.DisplayDialog("Error", $"ZIP file not found: {zipPath}", "OK");
+                yield break;
+            }
+            
+            if (string.IsNullOrEmpty(authToken))
+            {
+                Debug.LogError($"❌ mOUND: No authentication token");
+                EditorUtility.DisplayDialog("Authentication Error", "No authentication token. Please log in first.", "OK");
+                yield break;
+            }
+            
+            if (string.IsNullOrEmpty(appName))
+            {
+                Debug.LogError($"❌ mOUND: App name is required");
+                EditorUtility.DisplayDialog("Validation Error", "Application name is required.", "OK");
+                yield break;
+            }
+            
+            if (string.IsNullOrEmpty(organizationId))
+            {
+                Debug.LogError($"❌ mOUND: Organization ID is required");
+                EditorUtility.DisplayDialog("Validation Error", "Please select an organization.", "OK");
                 yield break;
             }
             
@@ -1281,10 +1303,28 @@ namespace mOUND
             
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications", "POST"))
             {
-                // Create form data
+                // Create form data with validation
                 List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+                
+                // Validate required fields
+                if (string.IsNullOrEmpty(appName))
+                {
+                    Debug.LogError($"❌ mOUND: App name is null or empty");
+                    EditorUtility.DisplayDialog("Upload Error", "Application name is required.", "OK");
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+                
+                if (string.IsNullOrEmpty(organizationId))
+                {
+                    Debug.LogError($"❌ mOUND: Organization ID is null or empty");
+                    EditorUtility.DisplayDialog("Upload Error", "Organization ID is missing. Please select an organization.", "OK");
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+                
                 formData.Add(new MultipartFormDataSection("name", appName));
-                formData.Add(new MultipartFormDataSection("description", appDescription));
+                formData.Add(new MultipartFormDataSection("description", appDescription ?? ""));
                 formData.Add(new MultipartFormDataSection("organizationId", organizationId));
                 formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
                 formData.Add(new MultipartFormFileSection("build", zipData, appName + ".zip", "application/zip"));
@@ -1392,10 +1432,28 @@ namespace mOUND
             
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications/" + appId + "/versions", "POST"))
             {
-                // Create form data for update
+                // Create form data for update with validation
                 List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+                
+                // Validate required fields for updates
+                if (string.IsNullOrEmpty(appName))
+                {
+                    Debug.LogError($"❌ mOUND: App name is null or empty for update");
+                    EditorUtility.DisplayDialog("Update Error", "Application name is required.", "OK");
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+                
+                if (string.IsNullOrEmpty(changelogText))
+                {
+                    Debug.LogError($"❌ mOUND: Changelog is null or empty for update");
+                    EditorUtility.DisplayDialog("Update Error", "Changelog is required for app updates.", "OK");
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+                
                 formData.Add(new MultipartFormDataSection("name", appName));
-                formData.Add(new MultipartFormDataSection("description", appDescription));
+                formData.Add(new MultipartFormDataSection("description", appDescription ?? ""));
                 formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
                 formData.Add(new MultipartFormDataSection("changelog", changelogText));
                 formData.Add(new MultipartFormFileSection("build", zipData, appName + "_update.zip", "application/zip"));
@@ -1475,7 +1533,13 @@ namespace mOUND
             catch (System.Exception e)
             {
                 EditorApplication.update -= () => UpdateCoroutine(coroutine);
-                Debug.LogError("Coroutine error: " + e.Message);
+                Debug.LogError($"❌ mOUND: Coroutine error: {e.Message}");
+                Debug.LogError($"❌ mOUND: Stack trace: {e.StackTrace}");
+                
+                // Clear progress bar and show user-friendly error
+                EditorUtility.ClearProgressBar();
+                EditorUtility.DisplayDialog("Upload Error", 
+                    $"An error occurred during upload:\n\n{e.Message}\n\nPlease check the console for more details.", "OK");
             }
         }
         
@@ -1525,17 +1589,36 @@ namespace mOUND
                 using (UnityWebRequest chunkRequest = new UnityWebRequest(chunkEndpoint, "POST"))
                 {
                     List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+                    
+                    // Add required fields with validation
                     formData.Add(new MultipartFormDataSection("chunkIndex", chunkIndex.ToString()));
                     formData.Add(new MultipartFormDataSection("totalChunks", totalChunks.ToString()));
-                    formData.Add(new MultipartFormDataSection("fileName", fileName));
+                    formData.Add(new MultipartFormDataSection("fileName", fileName ?? "unknown.zip"));
                     formData.Add(new MultipartFormDataSection("isFirstChunk", (chunkIndex == 0).ToString().ToLower()));
                     formData.Add(new MultipartFormDataSection("isLastChunk", (chunkIndex == totalChunks - 1).ToString().ToLower()));
                     
-                    // For new apps only
+                    // For new apps only - validate required fields
+                    if (string.IsNullOrEmpty(organizationId))
+                    {
+                        Debug.LogError($"❌ mOUND: Organization ID is null or empty");
+                        EditorUtility.DisplayDialog("Upload Error", "Organization ID is missing. Please select an organization.", "OK");
+                        EditorUtility.ClearProgressBar();
+                        yield break;
+                    }
+                    
                     formData.Add(new MultipartFormDataSection("organizationId", organizationId));
-                    formData.Add(new MultipartFormDataSection("name", appName));
-                    formData.Add(new MultipartFormDataSection("description", appDescription));
+                    formData.Add(new MultipartFormDataSection("name", appName ?? "Untitled App"));
+                    formData.Add(new MultipartFormDataSection("description", appDescription ?? ""));
                     formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
+                    
+                    // Add chunk data with validation
+                    if (chunkData == null || chunkData.Length == 0)
+                    {
+                        Debug.LogError($"❌ mOUND: Chunk data is null or empty for chunk {chunkIndex}");
+                        EditorUtility.DisplayDialog("Upload Error", $"Chunk {chunkIndex + 1} data is invalid.", "OK");
+                        EditorUtility.ClearProgressBar();
+                        yield break;
+                    }
                     
                     formData.Add(new MultipartFormFileSection("chunk", chunkData, $"chunk_{chunkIndex}", "application/octet-stream"));
                     
