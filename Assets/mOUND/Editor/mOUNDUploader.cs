@@ -1754,10 +1754,43 @@ namespace mOUND
                                 createAppRequest.SetRequestHeader("Content-Type", "multipart/form-data; boundary=" + System.Text.Encoding.UTF8.GetString(appBoundary));
                                 createAppRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
                                 createAppRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                                createAppRequest.timeout = 300; // 5 minute timeout for application creation
                                 createAppRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
                                 createAppRequest.disposeCertificateHandlerOnDispose = true;
                                 
+                                Debug.Log($"📦 mOUND: Sending application creation request...");
+                                EditorUtility.DisplayProgressBar("Creating Application", "Creating application record...", 0.9f);
+                                
                                 yield return createAppRequest.SendWebRequest();
+                                
+                                // Ensure request is fully completed with timeout protection
+                                float startTime = Time.realtimeSinceStartup;
+                                float timeoutSeconds = 300f; // 5 minutes
+                                
+                                while (!createAppRequest.isDone)
+                                {
+                                    float elapsed = Time.realtimeSinceStartup - startTime;
+                                    if (elapsed > timeoutSeconds)
+                                    {
+                                        Debug.LogError($"❌ mOUND: Application creation request timed out after {timeoutSeconds} seconds");
+                                        EditorUtility.DisplayDialog("Timeout", $"Application creation timed out after {timeoutSeconds} seconds. The server may be processing a large file.", "OK");
+                                        EditorUtility.ClearProgressBar();
+                                        yield break;
+                                    }
+                                    
+                                    // Update progress bar with timeout info
+                                    float progress = 0.9f + (elapsed / timeoutSeconds) * 0.1f;
+                                    EditorUtility.DisplayProgressBar("Creating Application", 
+                                        $"Creating application record... ({elapsed:F1}s elapsed)", 
+                                        Mathf.Min(progress, 0.99f));
+                                    
+                                    yield return null;
+                                }
+                                
+                                Debug.Log($"📦 mOUND: Application creation request completed");
+                                Debug.Log($"📦 mOUND: Result: {createAppRequest.result}");
+                                Debug.Log($"📦 mOUND: Response Code: {createAppRequest.responseCode}");
+                                Debug.Log($"📦 mOUND: Error: {createAppRequest.error ?? "None"}");
                                 
                                 if (createAppRequest.result == UnityWebRequest.Result.Success)
                                 {
