@@ -1728,30 +1728,30 @@ namespace mOUND
                                 List<IMultipartFormSection> appFormData = new List<IMultipartFormSection>();
                                 
                                 // Double-check all fields are valid before creating form data
-                                string safeAppName = string.IsNullOrEmpty(appName) ? "Untitled App" : appName;
-                                string safeDescription = string.IsNullOrEmpty(appDescription) ? "" : appDescription;
-                                string safeOrgId = string.IsNullOrEmpty(organizationId) ? "" : organizationId;
+                                string appSafeName = string.IsNullOrEmpty(appName) ? "Untitled App" : appName;
+                                string appSafeDescription = string.IsNullOrEmpty(appDescription) ? "" : appDescription;
+                                string appSafeOrgId = string.IsNullOrEmpty(organizationId) ? "" : organizationId;
                                 
                                 Debug.Log($"📦 mOUND: Creating application with:");
-                                Debug.Log($"📦 mOUND: - Name: '{safeAppName}'");
-                                Debug.Log($"📦 mOUND: - Description: '{safeDescription}'");
-                                Debug.Log($"📦 mOUND: - Organization ID: '{safeOrgId}'");
+                                Debug.Log($"📦 mOUND: - Name: '{appSafeName}'");
+                                Debug.Log($"📦 mOUND: - Description: '{appSafeDescription}'");
+                                Debug.Log($"📦 mOUND: - Organization ID: '{appSafeOrgId}'");
                                 Debug.Log($"📦 mOUND: - File Name: '{fileName}'");
                                 Debug.Log($"📦 mOUND: - File Size: {zipData.Length}");
                                 
-                                appFormData.Add(new MultipartFormDataSection("name", safeAppName));
-                                appFormData.Add(new MultipartFormDataSection("description", safeDescription));
-                                appFormData.Add(new MultipartFormDataSection("organizationId", safeOrgId));
+                                appFormData.Add(new MultipartFormDataSection("name", appSafeName));
+                                appFormData.Add(new MultipartFormDataSection("description", appSafeDescription));
+                                appFormData.Add(new MultipartFormDataSection("organizationId", appSafeOrgId));
                                 appFormData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
                                 appFormData.Add(new MultipartFormDataSection("fileName", fileName));
                                 appFormData.Add(new MultipartFormDataSection("fileSize", zipData.Length.ToString()));
                                 
-                                byte[] boundary = UnityWebRequest.GenerateBoundary();
-                                byte[] formSections = UnityWebRequest.SerializeFormSections(appFormData, boundary);
+                                byte[] appBoundary = UnityWebRequest.GenerateBoundary();
+                                byte[] appFormSections = UnityWebRequest.SerializeFormSections(appFormData, appBoundary);
                                 
-                                createAppRequest.uploadHandler = new UploadHandlerRaw(formSections);
+                                createAppRequest.uploadHandler = new UploadHandlerRaw(appFormSections);
                                 createAppRequest.downloadHandler = new DownloadHandlerBuffer();
-                                createAppRequest.SetRequestHeader("Content-Type", "multipart/form-data; boundary=" + System.Text.Encoding.UTF8.GetString(boundary));
+                                createAppRequest.SetRequestHeader("Content-Type", "multipart/form-data; boundary=" + System.Text.Encoding.UTF8.GetString(appBoundary));
                                 createAppRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
                                 createAppRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
                                 createAppRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
