@@ -18,3 +18,4 @@ git push -u origin main
 
 # Alternative: Use GitHub CLI if available
 # gh release create v1.0.0 dist/mOUND-Platform-Uploader-v1.0.0.zip --title "mOUND Unity Plugin v1.0.0" --notes "Initial release with one-click WebGL build and upload functionality"
+

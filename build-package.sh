@@ -35,3 +35,4 @@ echo "🚀 Installation Instructions:"
 echo "1. For Unity Package Manager: Use the package.json file"
 echo "2. For manual installation: Extract the ZIP file to your project's Assets folder"
 echo "3. For Unity Package: Import the .unitypackage file through Assets > Import Package"
+

@@ -114,7 +114,7 @@ namespace mOUND
         [MenuItem("mOUND/Build and Upload")]
         public static void ShowWindow()
         {
-            GetWindow<mOUNDUploader>("mOUND Uploader");
+            GetWindow<mOUNDUploader>("🚀 mOUND Platform Uploader");
         }
         
         private void OnEnable()
@@ -160,7 +160,13 @@ namespace mOUND
         {
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
             
+            // Modern header
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("🚀", GUILayout.Width(30), GUILayout.Height(30));
             GUILayout.Label("mOUND Platform Uploader", EditorStyles.boldLabel);
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.HelpBox("Deploy your Unity WebGL builds to the mOUND Platform with version control and organization management.", MessageType.Info);
             GUILayout.Space(10);
             
             if (!isLoggedIn)
@@ -177,17 +183,29 @@ namespace mOUND
         
         private void DrawLoginSection()
         {
-            GUILayout.Label("Login to mOUND Platform", EditorStyles.boldLabel);
+            // Modern header with icon
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("🔐", GUILayout.Width(30), GUILayout.Height(30));
+            GUILayout.Label("mOUND Platform Authentication", EditorStyles.boldLabel);
+            EditorGUILayout.EndHorizontal();
             
+            EditorGUILayout.Space(10);
+            
+            // API URL configuration
+            EditorGUILayout.BeginVertical("box");
+            GUILayout.Label("Platform Configuration", EditorStyles.boldLabel);
             GUILayout.Label("API URL:");
             apiUrl = EditorGUILayout.TextField(apiUrl);
+            EditorGUILayout.EndVertical();
             
-            EditorGUILayout.Space(5);
+            EditorGUILayout.Space(10);
             
-            // Direct username/password login using .NET 6 HttpClient
-            EditorGUILayout.HelpBox(".NET 6 HttpClient method works! Using direct login:", MessageType.Info);
+            // Primary login method
+            EditorGUILayout.BeginVertical("box");
+            GUILayout.Label("🚀 Quick Login (Recommended)", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("Direct login with username and password. Fast and secure!", MessageType.Info);
             
-            GUILayout.Label("Username:");
+            GUILayout.Label("Username or Email:");
             username = EditorGUILayout.TextField(username);
             
             GUILayout.Label("Password:");
@@ -197,31 +215,33 @@ namespace mOUND
             
             EditorGUI.BeginDisabledGroup(isValidatingToken);
             if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password) && 
-                GUILayout.Button(isValidatingToken ? "Logging in..." : "Login (.NET 6)", GUILayout.Height(30)))
+                GUILayout.Button(isValidatingToken ? "🔐 Logging in..." : "🚀 Login to mOUND", GUILayout.Height(35)))
             {
-                _ = LoginAsync(); // Use .NET 6 HttpClient method that works
+                _ = LoginAsync();
             }
             EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndVertical();
             
             EditorGUILayout.Space(10);
             
-            GUILayout.Label("Alternative Methods:", EditorStyles.boldLabel);
+            // Alternative methods
+            EditorGUILayout.BeginVertical("box");
+            GUILayout.Label("🔑 Alternative Authentication", EditorStyles.boldLabel);
             
-            if (GUILayout.Button("1. Open mOUND Platform Login", GUILayout.Height(30)))
+            if (GUILayout.Button("🌐 Open mOUND Platform in Browser", GUILayout.Height(30)))
             {
                 string loginUrl = apiUrl + "/login";
                 Application.OpenURL(loginUrl);
-                EditorUtility.DisplayDialog("Browser Login Instructions", 
+                EditorUtility.DisplayDialog("Browser Login", 
                     "1. Login in the browser that just opened\n" +
                     "2. Go to your Profile page\n" +
                     "3. Copy the API Token\n" +
-                    "4. Paste it in the field below\n" +
-                    "5. Click 'Validate Token'", "OK");
+                    "4. Paste it below and click 'Validate Token'", "OK");
             }
             
             EditorGUILayout.Space(5);
             
-            GUILayout.Label("2. Paste API Token from Profile Page:");
+            GUILayout.Label("API Token from Profile Page:");
             string manualToken = EditorGUILayout.TextField(authToken, GUILayout.Height(20));
             
             if (manualToken != authToken)
@@ -232,53 +252,76 @@ namespace mOUND
             EditorGUILayout.Space(5);
             
             EditorGUI.BeginDisabledGroup(isValidatingToken);
-            if (!string.IsNullOrEmpty(authToken) && GUILayout.Button(isValidatingToken ? "Validating..." : "3. Validate Token", GUILayout.Height(30)))
+            if (!string.IsNullOrEmpty(authToken) && GUILayout.Button(isValidatingToken ? "🔍 Validating..." : "✅ Validate Token", GUILayout.Height(30)))
             {
                 StartCoroutine(ValidateToken());
             }
             EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndVertical();
             
-            if (GUILayout.Button("Need Help? Open Profile Page", GUILayout.Height(25)))
+            EditorGUILayout.Space(10);
+            
+            // Help and diagnostics
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("❓ Help & Support", GUILayout.Height(25)))
             {
                 Application.OpenURL(apiUrl + "/profile");
             }
             
-            EditorGUILayout.Space(5);
-            
-            if (GUILayout.Button("🌐 Test Basic Connectivity", GUILayout.Height(25)))
+            if (GUILayout.Button("🌐 Test Connection", GUILayout.Height(25)))
             {
                 StartCoroutine(TestConnectivity());
             }
-            
-            EditorGUILayout.Space(5);
-            
-            if (GUILayout.Button("🔧 Try .NET 6 HttpClient Method", GUILayout.Height(25)))
-            {
-                _ = ValidateTokenAsync(); // Fire and forget async
-            }
+            EditorGUILayout.EndHorizontal();
         }
         
         private void DrawLoggedInSection()
         {
-            GUILayout.Label($"Logged in as: {username}", EditorStyles.boldLabel);
-            
-            if (GUILayout.Button("Logout"))
+            // User info header
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("👤", GUILayout.Width(30), GUILayout.Height(30));
+            GUILayout.Label($"Welcome back, {username}!", EditorStyles.boldLabel);
+            if (GUILayout.Button("🚪 Logout", GUILayout.Width(80), GUILayout.Height(25)))
             {
                 Logout();
                 return;
             }
+            EditorGUILayout.EndHorizontal();
             
-            GUILayout.Space(10);
+            EditorGUILayout.Space(10);
             
-            GUILayout.Label("Application Details", EditorStyles.boldLabel);
+            // Deployment mode selection
+            EditorGUILayout.BeginVertical("box");
+            GUILayout.Label("📦 Deployment Mode", EditorStyles.boldLabel);
             
-            GUILayout.Label("Application Name:");
-            appName = EditorGUILayout.TextField(appName);
+            bool newUpdateMode = EditorGUILayout.Toggle("🔄 Update Existing App", isUpdateMode);
+            if (newUpdateMode != isUpdateMode)
+            {
+                isUpdateMode = newUpdateMode;
+                if (isUpdateMode)
+                {
+                    if (!string.IsNullOrEmpty(organizationId) && existingApps.Count == 0)
+                    {
+                        _ = FetchApplicationsAsync(organizationId);
+                    }
+                    selectedAppIndex = -1;
+                }
+                else
+                {
+                    appName = "";
+                    appDescription = "";
+                    changelogText = "";
+                    selectedAppIndex = -1;
+                }
+            }
+            EditorGUILayout.EndVertical();
             
-            GUILayout.Label("Description:");
-            appDescription = EditorGUILayout.TextArea(appDescription, GUILayout.Height(60));
+            EditorGUILayout.Space(10);
             
-            GUILayout.Label("Organization:");
+            // Organization selection
+            EditorGUILayout.BeginVertical("box");
+            GUILayout.Label("🏢 Organization", EditorStyles.boldLabel);
+            
             if (organizations.Count > 0)
             {
                 string[] orgNames = new string[organizations.Count];
@@ -291,120 +334,105 @@ namespace mOUND
                 {
                     selectedOrgIndex = newOrgIndex;
                     organizationId = organizations[selectedOrgIndex].id;
-                    // Fetch apps for this organization
                     _ = FetchApplicationsAsync(organizationId);
                 }
             }
             else
             {
-                GUILayout.Label("No organizations available");
-                if (GUILayout.Button("Refresh Organizations"))
+                EditorGUILayout.HelpBox("No organizations available", MessageType.Warning);
+                if (GUILayout.Button("🔄 Refresh Organizations"))
                 {
-                    Debug.Log($"🔄 mOUND: Manual organization refresh requested");
-                    _ = FetchOrganizationsAsync(); // Use async method
+                    _ = FetchOrganizationsAsync();
                 }
             }
+            EditorGUILayout.EndVertical();
             
-            // Always show refresh button for debugging
-            if (organizations.Count > 0 && GUILayout.Button("🔄 Refresh Organizations", GUILayout.Height(20)))
+            EditorGUILayout.Space(10);
+            
+            // App selection for updates
+            if (isUpdateMode)
             {
-                Debug.Log($"🔄 mOUND: Manual organization refresh (debug)");
-                _ = FetchOrganizationsAsync();
-            }
-            
-            GUILayout.Space(10);
-            
-            // Update mode toggle
-            bool newUpdateMode = EditorGUILayout.Toggle("Update Existing App", isUpdateMode);
-            if (newUpdateMode != isUpdateMode)
-            {
-                isUpdateMode = newUpdateMode;
-                if (isUpdateMode)
+                EditorGUILayout.BeginVertical("box");
+                GUILayout.Label("📱 Select App to Update", EditorStyles.boldLabel);
+                
+                if (existingApps.Count > 0)
                 {
-                    // When switching to update mode, fetch apps if we have an org selected
-                    if (!string.IsNullOrEmpty(organizationId) && existingApps.Count == 0)
+                    string[] appOptions = new string[existingApps.Count + 1];
+                    appOptions[0] = "➕ Create New App";
+                    for (int i = 0; i < existingApps.Count; i++)
                     {
-                        Debug.Log($"🔄 mOUND: Switching to update mode, fetching apps for org: {organizationId}");
-                        _ = FetchApplicationsAsync(organizationId);
+                        appOptions[i + 1] = $"{existingApps[i].name} (v{existingApps[i].version ?? "1.0.0"})";
                     }
-                    selectedAppIndex = -1; // Reset selection
+                    
+                    int newAppIndex = EditorGUILayout.Popup(selectedAppIndex + 1, appOptions) - 1;
+                    if (newAppIndex != selectedAppIndex)
+                    {
+                        selectedAppIndex = newAppIndex;
+                        if (selectedAppIndex >= 0)
+                        {
+                            var selectedApp = existingApps[selectedAppIndex];
+                            appName = selectedApp.name;
+                            appDescription = selectedApp.description;
+                        }
+                        else
+                        {
+                            appName = "";
+                            appDescription = "";
+                            changelogText = "";
+                        }
+                    }
                 }
                 else
                 {
-                    // When switching to create mode, clear app details
-                    appName = "";
-                    appDescription = "";
-                    changelogText = "";
-                    selectedAppIndex = -1;
+                    EditorGUILayout.HelpBox("No existing apps found for this organization", MessageType.Info);
+                    if (GUILayout.Button("🔄 Refresh Apps"))
+                    {
+                        if (!string.IsNullOrEmpty(organizationId))
+                        {
+                            _ = FetchApplicationsAsync(organizationId);
+                        }
+                    }
                 }
-            }
-            
-            if (isUpdateMode && existingApps.Count > 0)
-            {
-                GUILayout.Label("Select App to Update:");
-                string[] appOptions = new string[existingApps.Count + 1];
-                appOptions[0] = "Create New App";
-                for (int i = 0; i < existingApps.Count; i++)
-                {
-                    appOptions[i + 1] = $"{existingApps[i].name} (v{existingApps[i].version ?? "1.0.0"})";
-                }
+                EditorGUILayout.EndVertical();
                 
-                int newAppIndex = EditorGUILayout.Popup(selectedAppIndex + 1, appOptions) - 1;
-                if (newAppIndex != selectedAppIndex)
-                {
-                    selectedAppIndex = newAppIndex;
-                    if (selectedAppIndex >= 0)
-                    {
-                        // Auto-populate with existing app data
-                        var selectedApp = existingApps[selectedAppIndex];
-                        appName = selectedApp.name;
-                        appDescription = selectedApp.description;
-                        Debug.Log($"🔄 mOUND: Auto-populated app details for update: {selectedApp.name}");
-                    }
-                    else
-                    {
-                        // Reset to empty for new app
-                        appName = "";
-                        appDescription = "";
-                        changelogText = "";
-                    }
-                }
-                
-                // Show changelog field for updates
-                if (selectedAppIndex >= 0)
-                {
-                    GUILayout.Space(10);
-                    EditorGUILayout.HelpBox("Changelog is required for app updates", MessageType.Info);
-                    GUILayout.Label("What's New in This Version: *");
-                    changelogText = EditorGUILayout.TextArea(changelogText, GUILayout.Height(80));
-                    
-                    if (string.IsNullOrEmpty(changelogText.Trim()))
-                    {
-                        EditorGUILayout.HelpBox("Please describe what's new in this update", MessageType.Warning);
-                    }
-                }
+                EditorGUILayout.Space(10);
             }
-            else if (isUpdateMode)
+            
+            // Application details
+            EditorGUILayout.BeginVertical("box");
+            GUILayout.Label("📝 Application Details", EditorStyles.boldLabel);
+            
+            GUILayout.Label("Application Name:");
+            appName = EditorGUILayout.TextField(appName);
+            
+            GUILayout.Label("Description:");
+            appDescription = EditorGUILayout.TextArea(appDescription, GUILayout.Height(60));
+            
+            // Changelog for updates
+            if (isUpdateMode && selectedAppIndex >= 0)
             {
-                GUILayout.Label("No existing apps found for this organization");
-                if (GUILayout.Button("Refresh Apps"))
+                EditorGUILayout.Space(5);
+                EditorGUILayout.HelpBox("Changelog is required for app updates", MessageType.Info);
+                GUILayout.Label("What's New in This Version: *");
+                changelogText = EditorGUILayout.TextArea(changelogText, GUILayout.Height(80));
+                
+                if (string.IsNullOrEmpty(changelogText.Trim()))
                 {
-                    if (!string.IsNullOrEmpty(organizationId))
-                    {
-                        _ = FetchApplicationsAsync(organizationId);
-                    }
+                    EditorGUILayout.HelpBox("Please describe what's new in this update", MessageType.Warning);
                 }
             }
             
-            isPublic = EditorGUILayout.Toggle("Public Application", isPublic);
+            isPublic = EditorGUILayout.Toggle("🌍 Public Application", isPublic);
+            EditorGUILayout.EndVertical();
             
-            GUILayout.Space(20);
+            EditorGUILayout.Space(15);
             
+            // Main action button
             string buttonText = isUpdateMode && selectedAppIndex >= 0 
-                ? $"Build WebGL and Update {existingApps[selectedAppIndex].name}" 
-                : "Build WebGL and Upload";
+                ? $"🚀 Build & Update {existingApps[selectedAppIndex].name}" 
+                : "🚀 Build WebGL & Upload";
                 
-            if (GUILayout.Button(buttonText, GUILayout.Height(40)))
+            if (GUILayout.Button(buttonText, GUILayout.Height(45)))
             {
                 if (string.IsNullOrEmpty(appName))
                 {
@@ -418,7 +446,6 @@ namespace mOUND
                     return;
                 }
                 
-                // Validate changelog for updates
                 if (isUpdateMode && selectedAppIndex >= 0)
                 {
                     if (string.IsNullOrEmpty(changelogText.Trim()))
@@ -434,12 +461,20 @@ namespace mOUND
                 }
             }
             
-            GUILayout.Space(10);
+            EditorGUILayout.Space(10);
             
-            if (GUILayout.Button("Open mOUND Platform"))
+            // Quick actions
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("🌐 Open mOUND Platform", GUILayout.Height(25)))
             {
                 Application.OpenURL(apiUrl);
             }
+            
+            if (GUILayout.Button("📊 View Apps", GUILayout.Height(25)))
+            {
+                Application.OpenURL(apiUrl + "/applications");
+            }
+            EditorGUILayout.EndHorizontal();
         }
         
         private void BuildAndUpdate()
@@ -1234,27 +1269,15 @@ namespace mOUND
                 yield break;
             }
             
-            // Use signed URL upload for files > 30MB (Cloud Run limit is 32MB)
-            if (zipData.Length > 30 * 1024 * 1024)
+            // Use chunked upload for files > 20MB (Cloud Run limit is 32MB)
+            if (zipData.Length > 20 * 1024 * 1024)
             {
-                Debug.Log($"📤 mOUND: File > 30MB ({fileSizeMB}MB), using signed URL upload to bypass Cloud Run limit");
-                
-                // Add option to force direct upload for testing
-                if (EditorUtility.DisplayDialog("Large File Upload", 
-                    $"File size: {fileSizeMB}MB\n\nChoose upload method:", 
-                    "Signed URL (Recommended)", "Direct Upload (May Fail)"))
-                {
-                    yield return UploadViaSignedUrl(zipPath, zipData, organizationId, isPublic, false, "", "");
-                }
-                else
-                {
-                    Debug.Log($"📤 mOUND: User chose direct upload despite large file size");
-                    // Continue with direct upload below
-                }
+                Debug.Log($"📤 mOUND: File > 20MB ({fileSizeMB}MB), using chunked upload to bypass Cloud Run limit");
+                yield return UploadViaChunks(zipPath, zipData, organizationId, isPublic, false, "", "");
                 yield break;
             }
             
-            Debug.Log($"📤 mOUND: File <= 30MB, using direct upload");
+            Debug.Log($"📤 mOUND: File <= 20MB, using direct upload");
             
             using (UnityWebRequest request = new UnityWebRequest(apiUrl + "/api/applications", "POST"))
             {
@@ -1361,23 +1384,11 @@ namespace mOUND
                 yield break;
             }
             
-            // Use signed URL upload for files > 30MB (Cloud Run limit is 32MB)
-            if (zipData.Length > 30 * 1024 * 1024)
+            // Use chunked upload for files > 20MB (Cloud Run limit is 32MB)
+            if (zipData.Length > 20 * 1024 * 1024)
             {
-                Debug.Log($"📤 mOUND: Update file > 30MB ({fileSizeMB}MB), using signed URL upload to bypass Cloud Run limit");
-                
-                // Add option to force direct upload for testing
-                if (EditorUtility.DisplayDialog("Large File Update", 
-                    $"File size: {fileSizeMB}MB\n\nChoose update method:", 
-                    "Signed URL (Recommended)", "Direct Upload (May Fail)"))
-                {
-                    yield return UploadViaSignedUrl(zipPath, zipData, "", isPublic, true, appId, changelogText);
-                }
-                else
-                {
-                    Debug.Log($"📤 mOUND: User chose direct update despite large file size");
-                    // Continue with direct upload below
-                }
+                Debug.Log($"📤 mOUND: Update file > 20MB ({fileSizeMB}MB), using chunked upload to bypass Cloud Run limit");
+                yield return UploadViaChunks(zipPath, zipData, "", isPublic, true, appId, changelogText);
                 yield break;
             }
             
@@ -1470,6 +1481,167 @@ namespace mOUND
                 EditorApplication.update -= () => UpdateCoroutine(coroutine);
                 Debug.LogError("Coroutine error: " + e.Message);
             }
+        }
+        
+        // Chunked upload method for large files (>20MB)
+        private IEnumerator UploadViaChunks(string zipPath, byte[] zipData, string organizationId, bool isPublic, bool isUpdate, string appId, string changelogText)
+        {
+            Debug.Log($"📦 mOUND: === CHUNKED UPLOAD START ===");
+            Debug.Log($"📦 mOUND: File size: {zipData.Length} bytes ({zipData.Length / (1024 * 1024)} MB)");
+            
+            const int chunkSize = 20 * 1024 * 1024; // 20MB chunks
+            int totalChunks = (int)Math.Ceiling((double)zipData.Length / chunkSize);
+            
+            Debug.Log($"📦 mOUND: Splitting into {totalChunks} chunks of {chunkSize / (1024 * 1024)}MB each");
+            
+            // Step 1: Initialize chunked upload
+            string uploadId = "";
+            string initEndpoint = isUpdate 
+                ? $"{apiUrl}/api/applications/{appId}/versions/chunks/init"
+                : $"{apiUrl}/api/applications/chunks/init";
+            
+            string initJson = isUpdate 
+                ? $"{{\"fileName\":\"{Path.GetFileName(zipPath)}\",\"fileSize\":{zipData.Length},\"totalChunks\":{totalChunks},\"changelog\":\"{changelogText}\"}}"
+                : $"{{\"fileName\":\"{Path.GetFileName(zipPath)}\",\"fileSize\":{zipData.Length},\"totalChunks\":{totalChunks},\"name\":\"{appName}\",\"description\":\"{appDescription}\",\"organizationId\":\"{organizationId}\",\"isPublic\":{isPublic.ToString().ToLower()}}}";
+            
+            Debug.Log($"📦 mOUND: Initializing chunked upload: {initEndpoint}");
+            Debug.Log($"📦 mOUND: Init JSON: {initJson}");
+            
+            using (UnityWebRequest initRequest = new UnityWebRequest(initEndpoint, "POST"))
+            {
+                byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(initJson);
+                initRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                initRequest.downloadHandler = new DownloadHandlerBuffer();
+                initRequest.SetRequestHeader("Content-Type", "application/json");
+                initRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
+                initRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                initRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                initRequest.disposeCertificateHandlerOnDispose = true;
+                
+                yield return initRequest.SendWebRequest();
+                
+                if (initRequest.result == UnityWebRequest.Result.Success)
+                {
+                    var initResponse = JsonUtility.FromJson<ChunkedUploadInitResponse>(initRequest.downloadHandler.text);
+                    uploadId = initResponse.uploadId;
+                    Debug.Log($"📦 mOUND: Upload initialized with ID: {uploadId}");
+                }
+                else
+                {
+                    string errorMsg = $"Failed to initialize chunked upload:\nResult: {initRequest.result}\nResponse Code: {initRequest.responseCode}\nError: {initRequest.error ?? "None"}";
+                    Debug.LogError($"❌ mOUND: {errorMsg}");
+                    EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
+                    EditorUtility.ClearProgressBar();
+                    yield break;
+                }
+            }
+            
+            // Step 2: Upload chunks
+            string chunkEndpoint = $"{apiUrl}/api/upload/chunks/{uploadId}";
+            
+            for (int chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++)
+            {
+                int startByte = chunkIndex * chunkSize;
+                int endByte = Math.Min(startByte + chunkSize, zipData.Length);
+                int currentChunkSize = endByte - startByte;
+                
+                byte[] chunkData = new byte[currentChunkSize];
+                Array.Copy(zipData, startByte, chunkData, 0, currentChunkSize);
+                
+                float progress = (float)chunkIndex / totalChunks;
+                EditorUtility.DisplayProgressBar("Uploading Chunks", 
+                    $"Uploading chunk {chunkIndex + 1}/{totalChunks} ({(progress * 100):F1}%)", 
+                    progress);
+                
+                Debug.Log($"📦 mOUND: Uploading chunk {chunkIndex + 1}/{totalChunks} ({currentChunkSize} bytes)");
+                
+                using (UnityWebRequest chunkRequest = new UnityWebRequest(chunkEndpoint, "POST"))
+                {
+                    List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+                    formData.Add(new MultipartFormDataSection("chunkIndex", chunkIndex.ToString()));
+                    formData.Add(new MultipartFormDataSection("totalChunks", totalChunks.ToString()));
+                    formData.Add(new MultipartFormFileSection("chunk", chunkData, $"chunk_{chunkIndex}", "application/octet-stream"));
+                    
+                    byte[] boundary = UnityWebRequest.GenerateBoundary();
+                    byte[] formSections = UnityWebRequest.SerializeFormSections(formData, boundary);
+                    
+                    chunkRequest.uploadHandler = new UploadHandlerRaw(formSections);
+                    chunkRequest.downloadHandler = new DownloadHandlerBuffer();
+                    chunkRequest.SetRequestHeader("Content-Type", "multipart/form-data; boundary=" + System.Text.Encoding.UTF8.GetString(boundary));
+                    chunkRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
+                    chunkRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                    chunkRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                    chunkRequest.disposeCertificateHandlerOnDispose = true;
+                    
+                    yield return chunkRequest.SendWebRequest();
+                    
+                    if (chunkRequest.result != UnityWebRequest.Result.Success)
+                    {
+                        string errorMsg = $"Failed to upload chunk {chunkIndex + 1}:\nResult: {chunkRequest.result}\nResponse Code: {chunkRequest.responseCode}\nError: {chunkRequest.error ?? "None"}";
+                        Debug.LogError($"❌ mOUND: {errorMsg}");
+                        EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
+                        EditorUtility.ClearProgressBar();
+                        yield break;
+                    }
+                    
+                    Debug.Log($"✅ mOUND: Chunk {chunkIndex + 1}/{totalChunks} uploaded successfully");
+                }
+            }
+            
+            // Step 3: Complete upload
+            EditorUtility.DisplayProgressBar("Completing Upload", "Finalizing upload...", 0.95f);
+            
+            string completeEndpoint = isUpdate 
+                ? $"{apiUrl}/api/applications/{appId}/versions/from-chunks"
+                : $"{apiUrl}/api/applications/from-chunks";
+            
+            string completeJson = isUpdate 
+                ? $"{{\"uploadId\":\"{uploadId}\",\"changelog\":\"{changelogText}\"}}"
+                : $"{{\"uploadId\":\"{uploadId}\"}}";
+            
+            Debug.Log($"📦 mOUND: Completing upload: {completeEndpoint}");
+            
+            using (UnityWebRequest completeRequest = new UnityWebRequest(completeEndpoint, "POST"))
+            {
+                byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(completeJson);
+                completeRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                completeRequest.downloadHandler = new DownloadHandlerBuffer();
+                completeRequest.SetRequestHeader("Content-Type", "application/json");
+                completeRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
+                completeRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
+                completeRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
+                completeRequest.disposeCertificateHandlerOnDispose = true;
+                
+                yield return completeRequest.SendWebRequest();
+                
+                EditorUtility.ClearProgressBar();
+                
+                if (completeRequest.result == UnityWebRequest.Result.Success)
+                {
+                    string successMsg = isUpdate ? "Application updated successfully!" : "Application uploaded successfully!";
+                    Debug.Log($"✅ mOUND: {successMsg}");
+                    EditorUtility.DisplayDialog("Success", successMsg, "OK");
+                    
+                    // Clean up
+                    if (File.Exists(zipPath))
+                    {
+                        File.Delete(zipPath);
+                        Debug.Log($"🗑️ mOUND: Cleaned up ZIP file: {zipPath}");
+                    }
+                    if (Directory.Exists("Builds/WebGL"))
+                    {
+                        Directory.Delete("Builds/WebGL", true);
+                    }
+                }
+                else
+                {
+                    string errorMsg = $"Failed to complete {(isUpdate ? "update" : "upload")}:\nResult: {completeRequest.result}\nResponse Code: {completeRequest.responseCode}\nError: {completeRequest.error ?? "None"}\nResponse: {completeRequest.downloadHandler?.text ?? "None"}";
+                    Debug.LogError($"❌ mOUND: {errorMsg}");
+                    EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
+                }
+            }
+            
+            Debug.Log($"📦 mOUND: === CHUNKED UPLOAD COMPLETE ===");
         }
         
         // Signed URL upload method for large files (>30MB)
@@ -1769,4 +1941,13 @@ public class SignedUrlResponse
     public string expiresAt;
     public string appId;
     public string provider;
+}
+
+[System.Serializable]
+public class ChunkedUploadInitResponse
+{
+    public string uploadId;
+    public string fileName;
+    public int totalChunks;
+    public long fileSize;
 }
