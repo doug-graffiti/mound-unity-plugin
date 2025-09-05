@@ -1578,7 +1578,16 @@ namespace mOUND
             {
                 if (!coroutine.MoveNext())
                 {
+                    Debug.Log("📦 mOUND: Coroutine completed, removing from update loop");
                     EditorApplication.update -= () => UpdateCoroutine(coroutine);
+                }
+                else
+                {
+                    // Log every 100 frames to see if we're stuck in a loop
+                    if (Time.frameCount % 100 == 0)
+                    {
+                        Debug.Log($"📦 mOUND: Coroutine still running, frame {Time.frameCount}");
+                    }
                 }
             }
             catch (System.Exception e)
@@ -1599,6 +1608,14 @@ namespace mOUND
         {
             EditorUtility.ClearProgressBar();
             Debug.Log("📦 mOUND: Progress bar manually cleared");
+        }
+        
+        // Menu item to clear progress bar manually
+        [MenuItem("mOUND/Clear Upload Progress")]
+        public static void ClearProgressBarMenuItem()
+        {
+            ClearUploadProgress();
+            EditorUtility.DisplayDialog("Progress Cleared", "Upload progress bar has been cleared.", "OK");
         }
         
         // Chunked upload method for large files (>20MB) - NEW APPS ONLY
