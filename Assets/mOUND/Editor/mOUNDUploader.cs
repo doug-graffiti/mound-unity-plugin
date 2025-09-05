@@ -1620,9 +1620,12 @@ namespace mOUND
             
             // Upload chunks directly to /api/upload/chunk
             string chunkEndpoint = $"{apiUrl}/api/upload/chunk";
+            Debug.Log($"📦 mOUND: Starting chunk upload to: {chunkEndpoint}");
             
             for (int chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++)
             {
+                Debug.Log($"📦 mOUND: === CHUNK {chunkIndex + 1}/{totalChunks} START ===");
+                
                 int startByte = chunkIndex * chunkSize;
                 int endByte = Math.Min(startByte + chunkSize, zipData.Length);
                 int currentChunkSize = endByte - startByte;
@@ -1635,7 +1638,7 @@ namespace mOUND
                     $"Uploading chunk {chunkIndex + 1}/{totalChunks} ({(progress * 100):F1}%)", 
                     progress);
                 
-                Debug.Log($"📦 mOUND: Uploading chunk {chunkIndex + 1}/{totalChunks} ({currentChunkSize} bytes)");
+                Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Size: {currentChunkSize} bytes, Progress: {(progress * 100):F1}%");
                 
                 using (UnityWebRequest chunkRequest = new UnityWebRequest(chunkEndpoint, "POST"))
                 {
@@ -1684,8 +1687,12 @@ namespace mOUND
                     
                     formData.Add(new MultipartFormFileSection("chunk", chunkData, $"chunk_{chunkIndex}", "application/octet-stream"));
                     
+                    Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Form data prepared, {formData.Count} sections");
+                    
                     byte[] boundary = UnityWebRequest.GenerateBoundary();
                     byte[] formSections = UnityWebRequest.SerializeFormSections(formData, boundary);
+                    
+                    Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Form serialized, size: {formSections.Length} bytes");
                     
                     chunkRequest.uploadHandler = new UploadHandlerRaw(formSections);
                     chunkRequest.downloadHandler = new DownloadHandlerBuffer();
@@ -1695,7 +1702,15 @@ namespace mOUND
                     chunkRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
                     chunkRequest.disposeCertificateHandlerOnDispose = true;
                     
+                    Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Sending request...");
                     yield return chunkRequest.SendWebRequest();
+                    
+                    Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Request completed, checking result...");
+                    
+                    Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Result: {chunkRequest.result}");
+                    Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Response Code: {chunkRequest.responseCode}");
+                    Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Error: {chunkRequest.error ?? "None"}");
+                    Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Response Text: {chunkRequest.downloadHandler?.text ?? "None"}");
                     
                     if (chunkRequest.result != UnityWebRequest.Result.Success)
                     {
@@ -1707,10 +1722,12 @@ namespace mOUND
                     }
                     
                     Debug.Log($"✅ mOUND: Chunk {chunkIndex + 1}/{totalChunks} uploaded successfully");
+                    Debug.Log($"📦 mOUND: === CHUNK {chunkIndex + 1}/{totalChunks} COMPLETE ===");
                     
                     // If this is the last chunk, create the application record
                     if (chunkIndex == totalChunks - 1)
                     {
+                        Debug.Log($"📦 mOUND: === LAST CHUNK PROCESSING START ===");
                         Debug.Log($"📦 mOUND: Last chunk uploaded, creating application record");
                         
                         // Check if the chunk upload was successful
@@ -1720,6 +1737,7 @@ namespace mOUND
                         if (chunkRequest.responseCode == 200)
                         {
                             // Now create the application record
+                            Debug.Log($"📦 mOUND: === APPLICATION CREATION START ===");
                             Debug.Log($"📦 mOUND: Creating application record via /api/applications/from-chunks");
                             
                             using (UnityWebRequest createAppRequest = new UnityWebRequest(apiUrl + "/api/applications/from-chunks", "POST"))
@@ -1759,17 +1777,27 @@ namespace mOUND
                                 createAppRequest.disposeCertificateHandlerOnDispose = true;
                                 
                                 Debug.Log($"📦 mOUND: Sending application creation request...");
+                                Debug.Log($"📦 mOUND: Request URL: {createAppRequest.url}");
+                                Debug.Log($"📦 mOUND: Request method: {createAppRequest.method}");
+                                Debug.Log($"📦 mOUND: Upload data size: {appFormSections.Length} bytes");
+                                
                                 EditorUtility.DisplayProgressBar("Creating Application", "Creating application record...", 0.9f);
                                 
+                                Debug.Log($"📦 mOUND: About to call SendWebRequest...");
                                 yield return createAppRequest.SendWebRequest();
+                                Debug.Log($"📦 mOUND: SendWebRequest returned");
                                 
                                 // Ensure request is fully completed with timeout protection
                                 float startTime = Time.realtimeSinceStartup;
                                 float timeoutSeconds = 300f; // 5 minutes
                                 
+                                Debug.Log($"📦 mOUND: Waiting for request completion...");
+                                
                                 while (!createAppRequest.isDone)
                                 {
                                     float elapsed = Time.realtimeSinceStartup - startTime;
+                                    Debug.Log($"📦 mOUND: Request still processing... {elapsed:F1}s elapsed, isDone: {createAppRequest.isDone}");
+                                    
                                     if (elapsed > timeoutSeconds)
                                     {
                                         Debug.LogError($"❌ mOUND: Application creation request timed out after {timeoutSeconds} seconds");
@@ -1787,10 +1815,13 @@ namespace mOUND
                                     yield return null;
                                 }
                                 
-                                Debug.Log($"📦 mOUND: Application creation request completed");
+                                Debug.Log($"📦 mOUND: Request completion loop finished");
+                                
+                                Debug.Log($"📦 mOUND: === APPLICATION CREATION RESPONSE ===");
                                 Debug.Log($"📦 mOUND: Result: {createAppRequest.result}");
                                 Debug.Log($"📦 mOUND: Response Code: {createAppRequest.responseCode}");
                                 Debug.Log($"📦 mOUND: Error: {createAppRequest.error ?? "None"}");
+                                Debug.Log($"📦 mOUND: Response Text Length: {(createAppRequest.downloadHandler?.text ?? "").Length}");
                                 
                                 if (createAppRequest.result == UnityWebRequest.Result.Success)
                                 {
@@ -1799,6 +1830,8 @@ namespace mOUND
                                     Debug.Log($"✅ mOUND: Application created successfully!");
                                     string appResponse = createAppRequest.downloadHandler?.text ?? "";
                                     Debug.Log($"📦 mOUND: Application response: {appResponse}");
+                                    
+                                    Debug.Log($"📦 mOUND: === APPLICATION CREATION COMPLETE ===");
                                     
                                     EditorUtility.DisplayDialog("Success", "Application uploaded and created successfully!", "OK");
                                     
