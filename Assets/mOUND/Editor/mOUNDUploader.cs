@@ -1323,11 +1323,22 @@ namespace mOUND
                     yield break;
                 }
                 
-                formData.Add(new MultipartFormDataSection("name", appName));
-                formData.Add(new MultipartFormDataSection("description", appDescription ?? ""));
-                formData.Add(new MultipartFormDataSection("organizationId", organizationId));
+                // Double-check all fields are valid before creating form data
+                string safeAppName = string.IsNullOrEmpty(appName) ? "Untitled App" : appName;
+                string safeDescription = string.IsNullOrEmpty(appDescription) ? "" : appDescription;
+                string safeOrgId = string.IsNullOrEmpty(organizationId) ? "" : organizationId;
+                
+                Debug.Log($"📤 mOUND: Creating form data with safe values:");
+                Debug.Log($"📤 mOUND: - App Name: '{safeAppName}'");
+                Debug.Log($"📤 mOUND: - Description: '{safeDescription}'");
+                Debug.Log($"📤 mOUND: - Organization ID: '{safeOrgId}'");
+                Debug.Log($"📤 mOUND: - Is Public: {isPublic}");
+                
+                formData.Add(new MultipartFormDataSection("name", safeAppName));
+                formData.Add(new MultipartFormDataSection("description", safeDescription));
+                formData.Add(new MultipartFormDataSection("organizationId", safeOrgId));
                 formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
-                formData.Add(new MultipartFormFileSection("build", zipData, appName + ".zip", "application/zip"));
+                formData.Add(new MultipartFormFileSection("build", zipData, safeAppName + ".zip", "application/zip"));
                 
                 byte[] boundary = UnityWebRequest.GenerateBoundary();
                 byte[] formSections = UnityWebRequest.SerializeFormSections(formData, boundary);
@@ -1396,10 +1407,39 @@ namespace mOUND
         {
             Debug.Log($"🔄 mOUND: Starting update of app {appId} with {zipPath}");
             
+            // Early validation for updates
             if (!File.Exists(zipPath))
             {
                 Debug.LogError($"❌ mOUND: ZIP file not found: {zipPath}");
                 EditorUtility.DisplayDialog("Error", $"ZIP file not found: {zipPath}", "OK");
+                yield break;
+            }
+            
+            if (string.IsNullOrEmpty(authToken))
+            {
+                Debug.LogError($"❌ mOUND: No authentication token for update");
+                EditorUtility.DisplayDialog("Authentication Error", "No authentication token. Please log in first.", "OK");
+                yield break;
+            }
+            
+            if (string.IsNullOrEmpty(appId))
+            {
+                Debug.LogError($"❌ mOUND: App ID is required for update");
+                EditorUtility.DisplayDialog("Update Error", "App ID is missing. Please select an app to update.", "OK");
+                yield break;
+            }
+            
+            if (string.IsNullOrEmpty(appName))
+            {
+                Debug.LogError($"❌ mOUND: App name is required for update");
+                EditorUtility.DisplayDialog("Update Error", "Application name is required.", "OK");
+                yield break;
+            }
+            
+            if (string.IsNullOrEmpty(changelogText))
+            {
+                Debug.LogError($"❌ mOUND: Changelog is required for update");
+                EditorUtility.DisplayDialog("Update Error", "Changelog is required for app updates.", "OK");
                 yield break;
             }
             
@@ -1452,11 +1492,22 @@ namespace mOUND
                     yield break;
                 }
                 
-                formData.Add(new MultipartFormDataSection("name", appName));
-                formData.Add(new MultipartFormDataSection("description", appDescription ?? ""));
+                // Double-check all fields are valid before creating form data
+                string safeAppName = string.IsNullOrEmpty(appName) ? "Untitled App" : appName;
+                string safeDescription = string.IsNullOrEmpty(appDescription) ? "" : appDescription;
+                string safeChangelog = string.IsNullOrEmpty(changelogText) ? "No changelog provided" : changelogText;
+                
+                Debug.Log($"🔄 mOUND: Creating form data with safe values:");
+                Debug.Log($"🔄 mOUND: - App Name: '{safeAppName}'");
+                Debug.Log($"🔄 mOUND: - Description: '{safeDescription}'");
+                Debug.Log($"🔄 mOUND: - Changelog: '{safeChangelog}'");
+                Debug.Log($"🔄 mOUND: - Is Public: {isPublic}");
+                
+                formData.Add(new MultipartFormDataSection("name", safeAppName));
+                formData.Add(new MultipartFormDataSection("description", safeDescription));
                 formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
-                formData.Add(new MultipartFormDataSection("changelog", changelogText));
-                formData.Add(new MultipartFormFileSection("build", zipData, appName + "_update.zip", "application/zip"));
+                formData.Add(new MultipartFormDataSection("changelog", safeChangelog));
+                formData.Add(new MultipartFormFileSection("build", zipData, safeAppName + "_update.zip", "application/zip"));
                 
                 byte[] boundary = UnityWebRequest.GenerateBoundary();
                 byte[] formSections = UnityWebRequest.SerializeFormSections(formData, boundary);
@@ -1606,9 +1657,20 @@ namespace mOUND
                         yield break;
                     }
                     
-                    formData.Add(new MultipartFormDataSection("organizationId", organizationId));
-                    formData.Add(new MultipartFormDataSection("name", appName ?? "Untitled App"));
-                    formData.Add(new MultipartFormDataSection("description", appDescription ?? ""));
+                    // Double-check all fields are valid before creating form data
+                    string safeAppName = string.IsNullOrEmpty(appName) ? "Untitled App" : appName;
+                    string safeDescription = string.IsNullOrEmpty(appDescription) ? "" : appDescription;
+                    string safeOrgId = string.IsNullOrEmpty(organizationId) ? "" : organizationId;
+                    
+                    Debug.Log($"📦 mOUND: Creating chunk form data with safe values:");
+                    Debug.Log($"📦 mOUND: - App Name: '{safeAppName}'");
+                    Debug.Log($"📦 mOUND: - Description: '{safeDescription}'");
+                    Debug.Log($"📦 mOUND: - Organization ID: '{safeOrgId}'");
+                    Debug.Log($"📦 mOUND: - Is Public: {isPublic}");
+                    
+                    formData.Add(new MultipartFormDataSection("organizationId", safeOrgId));
+                    formData.Add(new MultipartFormDataSection("name", safeAppName));
+                    formData.Add(new MultipartFormDataSection("description", safeDescription));
                     formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
                     
                     // Add chunk data with validation
