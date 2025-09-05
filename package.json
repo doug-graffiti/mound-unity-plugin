@@ -1,22 +1,37 @@
 {
-  "name": "com.gllc.mound",
+  "name": "com.mound.unity-plugin",
   "version": "1.0.0",
-  "displayName": "mOUND Platform Uploader",
-  "description": "Unity plugin for building WebGL applications and uploading them directly to the mOUND Platform",
-  "unity": "2023.1",
+  "displayName": "mOUND Unity Plugin",
+  "description": "The ultimate Unity WebGL deployment solution with advanced version control, chunked uploads, and seamless organization management.",
+  "unity": "2022.3",
   "keywords": [
+    "unity",
     "webgl",
-    "build",
-    "upload",
-    "platform",
     "deployment",
-    "unity6",
-    "dotnet6"
+    "upload",
+    "version-control",
+    "cloud"
   ],
   "author": {
-    "name": "GLLC",
-    "email": "support@gllc.io",
+    "name": "mOUND Platform",
+    "email": "support@mound.gllc.io",
     "url": "https://mound.gllc.io"
   },
-  "type": "tool"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/doug-graffiti/mound-unity-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/doug-graffiti/mound-unity-plugin/issues"
+  },
+  "homepage": "https://github.com/doug-graffiti/mound-unity-plugin#readme",
+  "dependencies": {},
+  "samples": [
+    {
+      "displayName": "mOUND Plugin Samples",
+      "description": "Sample configurations and usage examples",
+      "path": "Samples~"
+    }
+  ]
 }

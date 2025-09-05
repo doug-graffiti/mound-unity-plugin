@@ -1,55 +1,49 @@
-# mOUND Unity Plugin - Changelog
+# Changelog
 
-## [1.0.0] - 2024-01-03
+All notable changes to the mOUND Unity Plugin will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
 
 ### Added
-- **Initial Release** 🎉
-- One-click WebGL build and upload functionality
-- Secure authentication with mOUND Platform
-- Organization selection for uploads
-- Progress tracking during build and upload
-- Automatic cleanup of temporary build files
-- Settings persistence across Unity sessions
-- Support for public/private application uploads
-- Integration with mOUND Platform API
+- Comprehensive console logging for debugging chunked uploads
+- Timeout protection for application creation requests
+- Progress tracking with elapsed time display
+
+### Fixed
+- Variable naming conflicts in chunked upload method
+- Application creation call after chunk upload completion
+- Progress bar hanging at 80% during large file uploads
+
+## [1.0.0] - 2025-01-05
+
+### Added
+- Initial release of mOUND Unity Plugin
+- Chunked upload system for large files (>20MB)
+- Version control and management
+- Organization management features
+- Modern UI design with icons and structured sections
+- Support for Azure Blob, AWS S3, and Google Cloud Storage
 - Comprehensive error handling and user feedback
+- Direct login and authentication
+- App selection for updates
+- Changelog tracking for versions
+- Automatic cleanup of temporary files
 
 ### Features
-- **Build Automation**: Automatically configures and builds WebGL projects
-- **ZIP Creation**: Creates properly formatted ZIP files for platform upload
-- **Authentication**: Secure login with token-based authentication
-- **Organization Management**: Fetches and displays available organizations
-- **Progress UI**: Visual progress bars for build and upload operations
-- **Auto-Cleanup**: Removes build artifacts after successful upload
-- **Settings**: Configurable API URL and build preferences
+- **Chunked Upload**: Automatically splits large files into 20MB chunks
+- **Version Control**: Create, manage, and rollback application versions
+- **Organization Management**: Team collaboration and access control
+- **Cloud Storage**: Multi-provider support with automatic processing
+- **Modern UI**: Clean, intuitive interface with progress tracking
+- **Error Handling**: Comprehensive error reporting and recovery
 
-### Requirements
-- Unity 2021.3 LTS or newer
-- WebGL build support
-- Active internet connection
-- Valid mOUND Platform account
-
-### Known Issues
-- Unity command line tools required for .unitypackage creation
-- Large projects may take several minutes to build and upload
-
----
-
-## Future Roadmap
-
-### [1.1.0] - Planned
-- **Update Existing Apps**: Support for updating existing applications with new versions
-- **Build Optimization**: Improved build performance and compression
-- **Batch Operations**: Upload multiple projects in sequence
-- **Custom Build Profiles**: Save and reuse build configurations
-
-### [1.2.0] - Planned
-- **Asset Preview**: Preview builds before uploading
-- **Deployment History**: View previous uploads and versions
-- **Team Collaboration**: Share build configurations with team members
-- **Analytics Integration**: Track build performance and success rates
-
----
-
-*For support and feature requests, visit: https://mound.gllc.io*
-
+### Technical Details
+- Unity 2022.3+ compatibility
+- .NET 6 HttpClient integration for Unity 6
+- Multipart form data handling
+- Certificate validation bypass for development
+- Progress bar integration with EditorUtility
+- Coroutine-based asynchronous operations
