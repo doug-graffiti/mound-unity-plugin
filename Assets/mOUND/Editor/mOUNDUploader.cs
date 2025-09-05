@@ -1384,13 +1384,9 @@ namespace mOUND
                 yield break;
             }
             
-            // Use chunked upload for files > 20MB (Cloud Run limit is 32MB)
-            if (zipData.Length > 20 * 1024 * 1024)
-            {
-                Debug.Log($"📤 mOUND: Update file > 20MB ({fileSizeMB}MB), using chunked upload to bypass Cloud Run limit");
-                yield return UploadViaChunks(zipPath, zipData, "", isPublic, true, appId, changelogText);
-                yield break;
-            }
+            // For updates, use direct upload (chunked upload doesn't support updates yet)
+            // Use chunked upload only for new apps
+            Debug.Log($"📤 mOUND: Update file ({fileSizeMB}MB), using direct upload (chunked upload not supported for updates yet)");
             
             Debug.Log($"📤 mOUND: Update file <= 30MB, using direct upload");
             
@@ -1483,61 +1479,32 @@ namespace mOUND
             }
         }
         
-        // Chunked upload method for large files (>20MB)
+        // Chunked upload method for large files (>20MB) - NEW APPS ONLY
         private IEnumerator UploadViaChunks(string zipPath, byte[] zipData, string organizationId, bool isPublic, bool isUpdate, string appId, string changelogText)
         {
             Debug.Log($"📦 mOUND: === CHUNKED UPLOAD START ===");
             Debug.Log($"📦 mOUND: File size: {zipData.Length} bytes ({zipData.Length / (1024 * 1024)} MB)");
+            Debug.Log($"📦 mOUND: Is Update: {isUpdate}, App ID: {appId}");
+            
+            // Chunked upload currently only supports new apps, not updates
+            if (isUpdate)
+            {
+                Debug.LogError($"❌ mOUND: Chunked upload not supported for updates yet. Use direct upload instead.");
+                EditorUtility.DisplayDialog("Upload Method", 
+                    "Chunked upload is not yet supported for app updates.\n\n" +
+                    "Updates will use direct upload (limited to ~30MB).\n\n" +
+                    "For larger updates, please contact support.", "OK");
+                yield break;
+            }
             
             const int chunkSize = 20 * 1024 * 1024; // 20MB chunks
             int totalChunks = (int)Math.Ceiling((double)zipData.Length / chunkSize);
+            string fileName = Path.GetFileName(zipPath);
             
             Debug.Log($"📦 mOUND: Splitting into {totalChunks} chunks of {chunkSize / (1024 * 1024)}MB each");
             
-            // Step 1: Initialize chunked upload
-            string uploadId = "";
-            string initEndpoint = isUpdate 
-                ? $"{apiUrl}/api/applications/{appId}/versions/chunks/init"
-                : $"{apiUrl}/api/applications/chunks/init";
-            
-            string initJson = isUpdate 
-                ? $"{{\"fileName\":\"{Path.GetFileName(zipPath)}\",\"fileSize\":{zipData.Length},\"totalChunks\":{totalChunks},\"changelog\":\"{changelogText}\"}}"
-                : $"{{\"fileName\":\"{Path.GetFileName(zipPath)}\",\"fileSize\":{zipData.Length},\"totalChunks\":{totalChunks},\"name\":\"{appName}\",\"description\":\"{appDescription}\",\"organizationId\":\"{organizationId}\",\"isPublic\":{isPublic.ToString().ToLower()}}}";
-            
-            Debug.Log($"📦 mOUND: Initializing chunked upload: {initEndpoint}");
-            Debug.Log($"📦 mOUND: Init JSON: {initJson}");
-            
-            using (UnityWebRequest initRequest = new UnityWebRequest(initEndpoint, "POST"))
-            {
-                byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(initJson);
-                initRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
-                initRequest.downloadHandler = new DownloadHandlerBuffer();
-                initRequest.SetRequestHeader("Content-Type", "application/json");
-                initRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
-                initRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
-                initRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
-                initRequest.disposeCertificateHandlerOnDispose = true;
-                
-                yield return initRequest.SendWebRequest();
-                
-                if (initRequest.result == UnityWebRequest.Result.Success)
-                {
-                    var initResponse = JsonUtility.FromJson<ChunkedUploadInitResponse>(initRequest.downloadHandler.text);
-                    uploadId = initResponse.uploadId;
-                    Debug.Log($"📦 mOUND: Upload initialized with ID: {uploadId}");
-                }
-                else
-                {
-                    string errorMsg = $"Failed to initialize chunked upload:\nResult: {initRequest.result}\nResponse Code: {initRequest.responseCode}\nError: {initRequest.error ?? "None"}";
-                    Debug.LogError($"❌ mOUND: {errorMsg}");
-                    EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
-                    EditorUtility.ClearProgressBar();
-                    yield break;
-                }
-            }
-            
-            // Step 2: Upload chunks
-            string chunkEndpoint = $"{apiUrl}/api/upload/chunks/{uploadId}";
+            // Upload chunks directly to /api/upload/chunk
+            string chunkEndpoint = $"{apiUrl}/api/upload/chunk";
             
             for (int chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++)
             {
@@ -1560,6 +1527,16 @@ namespace mOUND
                     List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
                     formData.Add(new MultipartFormDataSection("chunkIndex", chunkIndex.ToString()));
                     formData.Add(new MultipartFormDataSection("totalChunks", totalChunks.ToString()));
+                    formData.Add(new MultipartFormDataSection("fileName", fileName));
+                    formData.Add(new MultipartFormDataSection("isFirstChunk", (chunkIndex == 0).ToString().ToLower()));
+                    formData.Add(new MultipartFormDataSection("isLastChunk", (chunkIndex == totalChunks - 1).ToString().ToLower()));
+                    
+                    // For new apps only
+                    formData.Add(new MultipartFormDataSection("organizationId", organizationId));
+                    formData.Add(new MultipartFormDataSection("name", appName));
+                    formData.Add(new MultipartFormDataSection("description", appDescription));
+                    formData.Add(new MultipartFormDataSection("isPublic", isPublic.ToString().ToLower()));
+                    
                     formData.Add(new MultipartFormFileSection("chunk", chunkData, $"chunk_{chunkIndex}", "application/octet-stream"));
                     
                     byte[] boundary = UnityWebRequest.GenerateBoundary();
@@ -1577,7 +1554,7 @@ namespace mOUND
                     
                     if (chunkRequest.result != UnityWebRequest.Result.Success)
                     {
-                        string errorMsg = $"Failed to upload chunk {chunkIndex + 1}:\nResult: {chunkRequest.result}\nResponse Code: {chunkRequest.responseCode}\nError: {chunkRequest.error ?? "None"}";
+                        string errorMsg = $"Failed to upload chunk {chunkIndex + 1}:\nResult: {chunkRequest.result}\nResponse Code: {chunkRequest.responseCode}\nError: {chunkRequest.error ?? "None"}\nResponse: {chunkRequest.downloadHandler?.text ?? "None"}";
                         Debug.LogError($"❌ mOUND: {errorMsg}");
                         EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
                         EditorUtility.ClearProgressBar();
@@ -1585,59 +1562,38 @@ namespace mOUND
                     }
                     
                     Debug.Log($"✅ mOUND: Chunk {chunkIndex + 1}/{totalChunks} uploaded successfully");
-                }
-            }
-            
-            // Step 3: Complete upload
-            EditorUtility.DisplayProgressBar("Completing Upload", "Finalizing upload...", 0.95f);
-            
-            string completeEndpoint = isUpdate 
-                ? $"{apiUrl}/api/applications/{appId}/versions/from-chunks"
-                : $"{apiUrl}/api/applications/from-chunks";
-            
-            string completeJson = isUpdate 
-                ? $"{{\"uploadId\":\"{uploadId}\",\"changelog\":\"{changelogText}\"}}"
-                : $"{{\"uploadId\":\"{uploadId}\"}}";
-            
-            Debug.Log($"📦 mOUND: Completing upload: {completeEndpoint}");
-            
-            using (UnityWebRequest completeRequest = new UnityWebRequest(completeEndpoint, "POST"))
-            {
-                byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(completeJson);
-                completeRequest.uploadHandler = new UploadHandlerRaw(bodyRaw);
-                completeRequest.downloadHandler = new DownloadHandlerBuffer();
-                completeRequest.SetRequestHeader("Content-Type", "application/json");
-                completeRequest.SetRequestHeader("Authorization", "Bearer " + authToken);
-                completeRequest.SetRequestHeader("User-Agent", "Unity-mOUND-Plugin/1.0.0");
-                completeRequest.certificateHandler = new AcceptAllCertificatesSignedWithASpecificKeyPublicKey();
-                completeRequest.disposeCertificateHandlerOnDispose = true;
-                
-                yield return completeRequest.SendWebRequest();
-                
-                EditorUtility.ClearProgressBar();
-                
-                if (completeRequest.result == UnityWebRequest.Result.Success)
-                {
-                    string successMsg = isUpdate ? "Application updated successfully!" : "Application uploaded successfully!";
-                    Debug.Log($"✅ mOUND: {successMsg}");
-                    EditorUtility.DisplayDialog("Success", successMsg, "OK");
                     
-                    // Clean up
-                    if (File.Exists(zipPath))
+                    // If this is the last chunk, the server should have processed the complete file
+                    if (chunkIndex == totalChunks - 1)
                     {
-                        File.Delete(zipPath);
-                        Debug.Log($"🗑️ mOUND: Cleaned up ZIP file: {zipPath}");
+                        Debug.Log($"📦 mOUND: Last chunk uploaded, server should have processed complete file");
+                        
+                        // Check if the response contains success information
+                        string responseText = chunkRequest.downloadHandler?.text ?? "";
+                        Debug.Log($"📦 mOUND: Final chunk response: {responseText}");
+                        
+                        if (chunkRequest.responseCode == 200)
+                        {
+                            EditorUtility.ClearProgressBar();
+                            
+                            Debug.Log($"✅ mOUND: Application uploaded successfully!");
+                            EditorUtility.DisplayDialog("Success", "Application uploaded successfully!", "OK");
+                            
+                            // Clean up
+                            if (File.Exists(zipPath))
+                            {
+                                File.Delete(zipPath);
+                                Debug.Log($"🗑️ mOUND: Cleaned up ZIP file: {zipPath}");
+                            }
+                            if (Directory.Exists("Builds/WebGL"))
+                            {
+                                Directory.Delete("Builds/WebGL", true);
+                            }
+                            
+                            Debug.Log($"📦 mOUND: === CHUNKED UPLOAD COMPLETE ===");
+                            yield break;
+                        }
                     }
-                    if (Directory.Exists("Builds/WebGL"))
-                    {
-                        Directory.Delete("Builds/WebGL", true);
-                    }
-                }
-                else
-                {
-                    string errorMsg = $"Failed to complete {(isUpdate ? "update" : "upload")}:\nResult: {completeRequest.result}\nResponse Code: {completeRequest.responseCode}\nError: {completeRequest.error ?? "None"}\nResponse: {completeRequest.downloadHandler?.text ?? "None"}";
-                    Debug.LogError($"❌ mOUND: {errorMsg}");
-                    EditorUtility.DisplayDialog("Upload Failed", errorMsg, "OK");
                 }
             }
             
