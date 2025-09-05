@@ -1594,12 +1594,23 @@ namespace mOUND
             }
         }
         
+        // Method to manually clear progress bar (can be called from outside)
+        public static void ClearUploadProgress()
+        {
+            EditorUtility.ClearProgressBar();
+            Debug.Log("📦 mOUND: Progress bar manually cleared");
+        }
+        
         // Chunked upload method for large files (>20MB) - NEW APPS ONLY
         private IEnumerator UploadViaChunks(string zipPath, byte[] zipData, string organizationId, bool isPublic, bool isUpdate, string appId, string changelogText)
         {
             Debug.Log($"📦 mOUND: === CHUNKED UPLOAD START ===");
             Debug.Log($"📦 mOUND: File size: {zipData.Length} bytes ({zipData.Length / (1024 * 1024)} MB)");
             Debug.Log($"📦 mOUND: Is Update: {isUpdate}, App ID: {appId}");
+            
+            // Add a global timeout for the entire upload process
+            float uploadStartTime = Time.realtimeSinceStartup;
+            float maxUploadTime = 600f; // 10 minutes total timeout
             
             // Chunked upload currently only supports new apps, not updates
             if (isUpdate)
@@ -1624,6 +1635,17 @@ namespace mOUND
             
             for (int chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++)
             {
+                // Check global timeout
+                float elapsedTime = Time.realtimeSinceStartup - uploadStartTime;
+                if (elapsedTime > maxUploadTime)
+                {
+                    Debug.LogError($"❌ mOUND: Upload timed out after {maxUploadTime} seconds");
+                    EditorUtility.ClearProgressBar();
+                    EditorUtility.DisplayDialog("Upload Timeout", 
+                        $"Upload timed out after {maxUploadTime} seconds. Please check your internet connection and try again.", "OK");
+                    yield break;
+                }
+                
                 Debug.Log($"📦 mOUND: === CHUNK {chunkIndex + 1}/{totalChunks} START ===");
                 
                 int startByte = chunkIndex * chunkSize;
@@ -1635,10 +1657,10 @@ namespace mOUND
                 
                 float progress = (float)chunkIndex / totalChunks;
                 EditorUtility.DisplayProgressBar("Uploading Chunks", 
-                    $"Uploading chunk {chunkIndex + 1}/{totalChunks} ({(progress * 100):F1}%)", 
+                    $"Uploading chunk {chunkIndex + 1}/{totalChunks} ({(progress * 100):F1}%) - {elapsedTime:F1}s elapsed", 
                     progress);
                 
-                Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Size: {currentChunkSize} bytes, Progress: {(progress * 100):F1}%");
+                Debug.Log($"📦 mOUND: Chunk {chunkIndex + 1} - Size: {currentChunkSize} bytes, Progress: {(progress * 100):F1}%, Elapsed: {elapsedTime:F1}s");
                 
                 using (UnityWebRequest chunkRequest = new UnityWebRequest(chunkEndpoint, "POST"))
                 {
