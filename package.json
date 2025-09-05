@@ -1,9 +1,10 @@
 {
-  "name": "com.mound.unity-plugin",
+  "name": "com.mound.unityplugin",
   "version": "1.0.0",
   "displayName": "mOUND Unity Plugin",
   "description": "The ultimate Unity WebGL deployment solution with advanced version control, chunked uploads, and seamless organization management.",
   "unity": "2022.3",
+  "unityRelease": "0f1",
   "keywords": [
     "unity",
     "webgl",
